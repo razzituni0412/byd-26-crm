@@ -262,15 +262,25 @@ function getTargetsForPeriod(
 }
 
 async function loadDeals(): Promise<Deal[]> {
-  const { data, error } = await supabase
-    .from("deals")
-    .select("*")
-    .order("date", { ascending: false });
-
-  if (error) {
-    console.error("Error loading deals:", error);
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  
+  if (!user) {
     return [];
   }
+  
+  const { data, error } = await supabase
+  .from("deals")
+  .select("*")
+  .eq("user_id", user.id)
+  .order("date", { ascending: false });
+
+if (error) {
+  console.error("Error loading deals:", error);
+  return [];
+}
+  
 
   return (data ?? []).map((deal) =>
     normalizeDeal({
@@ -636,6 +646,9 @@ function getProfitabilityAccent(interestRate: number) {
 
 export default function Home() {
   const [activePage, setActivePage] = useState<PageTab>("dashboard");
+  const [currentUser, setCurrentUser] = useState<any>(null);
+  const [loginEmail, setLoginEmail] = useState("");
+const [loginPassword, setLoginPassword] = useState("");
   const [deals, setDeals] = useState<Deal[]>([]);
   const [formData, setFormData] = useState<DealFormData>(defaultFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -801,7 +814,14 @@ export default function Home() {
     ) {
       return;
     }
+const {
+  data: { user },
+} = await supabase.auth.getUser();
 
+if (!user) {
+  alert("יש להתחבר לפני שמירת עסקה");
+  return;
+}
     const agentName = normalizeAgentName(formData.agentName);
 
     if (editingId) {
@@ -819,7 +839,8 @@ export default function Home() {
     status: formData.status,
     financing_type: formData.financingType,
   })
-  .eq("id", editingId);
+  .eq("id", editingId)
+  .eq("user_id", user.id);
       setDeals((prev) =>
         prev.map((deal) =>
           deal.id === editingId
@@ -841,6 +862,7 @@ export default function Home() {
   .from("deals")
   .insert({
     date: dealDate,
+    user_id: user.id,
     agent_name: agentName,
     customer_name: formData.customerName,
     car_model: formData.carModel,
@@ -913,7 +935,53 @@ console.log("Delete error:", error);
       icon: <Calculator className="h-4 w-4" />,
     },
   ];
-
+  if (!currentUser) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-[#03060d] text-white">
+        <div className="w-full max-w-sm p-8 rounded-3xl border border-cyan-500/20 bg-slate-950/60">
+       
+          <h1 className="text-3xl font-bold mb-6 text-center text-cyan-300">
+            כניסה למערכת
+          </h1>
+  
+          <input
+            type="email"
+            placeholder="כתובת מייל"
+            value={loginEmail}
+            onChange={(e) => setLoginEmail(e.target.value)}
+            className="w-full mb-3 p-3 rounded-xl bg-slate-900/80 border border-cyan-500/20 focus:border-cyan-400 outline-none"
+          />
+  
+          <input
+            type="password"
+            placeholder="סיסמא"
+            value={loginPassword}
+            onChange={(e) => setLoginPassword(e.target.value)}
+            className="w-full mb-4 p-3 rounded bg-slate-900 border border-slate-700"
+          />
+  
+          <button
+            onClick={async () => {
+              const { error } = await supabase.auth.signInWithPassword({
+                email: loginEmail,
+                password: loginPassword,
+              });
+  
+              if (error) {
+                alert(error.message);
+                return;
+              }
+  
+              window.location.reload();
+            }}
+            className="w-full p-4 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15 transition-all backdrop-blur shadow-[0_0_15px_rgba(34,211,238,0.15)]"
+          >
+            התחברות
+          </button>
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-[#03060d] text-white">
       <div className="cinematic-bg pointer-events-none fixed inset-0" />
