@@ -25,6 +25,8 @@ import {
   Camera,
   Share2,
   X,
+  SunMedium,
+  Moon,
 } from "lucide-react";
 import { NEXT_META_SUFFIX } from "next/dist/lib/constants";
 
@@ -643,7 +645,54 @@ function getProfitabilityAccent(interestRate: number) {
     indicatorLabel: "רווחיות נמוכה",
   };
 }
+function getGreeting() {
+  const hour = new Date().getHours();
 
+  if (hour >= 5 && hour < 12) {
+    return {
+      text: "בוקר טוב",
+      icon: (
+        <SunMedium className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+      ),
+    };
+  }
+
+  if (hour >= 12 && hour < 17) {
+    return {
+      text: "צהריים טובים",
+      icon: (
+        <SunMedium className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+      ),
+    };
+  }
+
+  if (hour >= 17 && hour < 22) {
+    return {
+      text: "ערב טוב",
+      icon: (
+        <Moon className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+      ),
+    };
+  }
+
+  return {
+    text: "לילה טוב",
+    icon: (
+      <Moon className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+    ),
+  };
+}
+ 
+
+
+
+function getUserName(email?: string) {
+  const users: Record<string, string> = {
+    "raz.zituni@icloud.com": "רז",
+  };
+
+  return email ? users[email] || email : "";
+}
 export default function Home() {
   const [activePage, setActivePage] = useState<PageTab>("dashboard");
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -662,6 +711,11 @@ const [loginPassword, setLoginPassword] = useState("");
   const [newAgentName, setNewAgentName] = useState("");
   useEffect(() => {
     async function initialize() {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      
+      setCurrentUser(user);
       const loadedDeals = await loadDeals();
   
       setDeals(loadedDeals);
@@ -962,6 +1016,7 @@ console.log("Delete error:", error);
   
           <button
             onClick={async () => {
+             
               const { error } = await supabase.auth.signInWithPassword({
                 email: loginEmail,
                 password: loginPassword,
@@ -990,6 +1045,17 @@ console.log("Delete error:", error);
         <header className="mission-header relative mb-3 text-center">
           <div className="mission-header__glow" aria-hidden />
           <div className="relative z-10">
+          <div className="absolute top-0 left-0">
+  <button
+    onClick={async () => {
+      await supabase.auth.signOut();
+      window.location.reload();
+    }}
+    className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.12)] backdrop-blur hover:bg-cyan-500/20 hover:text-cyan-100 transition-all"
+  >
+    התנתקות
+  </button>
+</div>
             <img
               src="/header-logo.png"
               alt="BYD Haifa"
@@ -999,8 +1065,15 @@ console.log("Delete error:", error);
             <h1 className="mission-header__title text-base sm:text-xl">
               מימון - מצב נציגים
             </h1>
+            <div className="mt-2 flex flex-row-reverse items-center justify-center gap-2 text-cyan-300 text-sm">
+  {getGreeting().icon}
+  <span>
+    {getGreeting().text} {getUserName(currentUser?.email)}
+  </span>
+</div>
             <div className="neon-streak neon-streak--title" aria-hidden />
           </div>
+
         </header>
 
         <nav className="glass-card gradient-border mb-5 grid grid-cols-2 gap-2 rounded-2xl p-2 sm:grid-cols-4">
