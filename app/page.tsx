@@ -346,12 +346,13 @@ function isoDateToDisplay(iso: string) {
 function displayDateToIso(display: string): string | null {
   const trimmed = display.trim();
   if (!trimmed) return "";
-  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{4})$/.exec(trimmed);
+  const match = /^(\d{1,2})\/(\d{1,2})\/(\d{2}|\d{4})$/.exec(trimmed);
   if (!match) return null;
 
   const day = Number(match[1]);
   const month = Number(match[2]);
-  const year = Number(match[3]);
+  const yearPart = Number(match[3]);
+const year = yearPart < 100 ? 2000 + yearPart : yearPart;
   if (month < 1 || month > 12 || day < 1 || day > 31 || year < 1000) return null;
 
   const parsed = new Date(year, month - 1, day);
@@ -418,7 +419,7 @@ function normalizeDeal(raw: Partial<Deal> & { id: string }): Deal {
     carModel,
     vehiclePrice,
     loanTermMonths: normalizeLoanTermMonths(raw.loanTermMonths),
-    financingAmount: Number(raw.financingAmount) || 0,
+    financingAmount: Number(raw.financingAmount) || 0 ,
     interestRate: Number(raw.interestRate) || 0,
     status: normalizeDealStatus(raw.status),
     financingType: normalizeFinancingType(raw.financingType),
@@ -1479,10 +1480,10 @@ console.log("Delete error:", error);
                     icon={<CircleDollarSign className="h-4 w-4" />}
                   >
                     <input
-                      type="number"
+                      type="text"
                       min={0}
                       required
-                      value={formData.financingAmount}
+                      value={formData.financingAmount === 0 ? "" : formData.financingAmount}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
@@ -1493,13 +1494,13 @@ console.log("Delete error:", error);
                     />
                   </Field>
 
-                  <Field label="ריבית (%)" icon={<Percent className="h-4 w-4" />}>
+                  <Field label="ריבית " icon={<Percent className="h-4 w-4" />}>
                     <input
                       type="number"
                       min={0}
                       step="0.01"
                       required
-                      value={formData.interestRate}
+                      value={formData.interestRate === 0 ? "" : formData.interestRate}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
@@ -1569,9 +1570,10 @@ console.log("Delete error:", error);
                           />
                           {deal.customerName}
                         </p>
-                        <p className="text-xs text-cyan-200/75">
-                          {deal.agentName} | {deal.carModel} |{" "}
-                          {formatLoanTerm(deal.loanTermMonths)}
+                        <p className="text-xs text-cyan-200/75 truncate">
+                        <span className="whitespace-nowrap">
+                        {deal.agentName} · {deal.carModel}· 
+</span>
                         </p>
                       </div>
                       <div className="flex shrink-0 flex-col items-end gap-1.5">
