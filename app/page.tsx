@@ -1060,19 +1060,36 @@ console.log("Delete error:", error);
             <img
               src="/header-logo.png"
               alt="BYD Haifa"
-              className="mx-auto block h-auto w-full max-w-[520px] sm:max-w-[620px]"
+              className="mx-auto block h-auto w-[75%] max-w-[560px] sm:w-[70%]"
             />
-            <div className="neon-streak neon-streak--hero" aria-hidden />
-            <h1 className="mission-header__title text-base sm:text-xl">
-              מימון - מצב נציגים
-            </h1>
-            <div className="mt-2 flex flex-row-reverse items-center justify-center gap-2 text-cyan-300 text-sm">
-  {getGreeting().icon}
-  <span>
-    {getGreeting().text} {getUserName(currentUser?.email)}
-  </span>
+            
+            
+            <div className="mt-2 flex flex-row-reverse items-center justify-center gap-3 text-cyan-300">
+
+  <div className="relative">
+    <img
+      src="https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/raz.jpeg"
+      alt="Profile"
+      className="h-10 w-10 rounded-full object-cover border border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.35)]"
+    />
+    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-400 border border-slate-900" />
+  </div>
+
+  <div className="flex flex-col items-end">
+    <div className="flex items-center gap-2 text-sm font-semibold text-cyan-200">
+      {getGreeting().icon}
+      <span>
+        {getGreeting().text} {getUserName(currentUser?.email)}
+      </span>
+    </div>
+
+    <span className="text-xs text-cyan-300/70">
+      מה שלומך היום?
+    </span>
+  </div>
+
 </div>
-            <div className="neon-streak neon-streak--title" aria-hidden />
+            
           </div>
 
         </header>
