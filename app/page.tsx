@@ -29,6 +29,7 @@ import {
   Moon,
 } from "lucide-react";
 import { NEXT_META_SUFFIX } from "next/dist/lib/constants";
+import { getMaxListeners } from "events";
 
 type DealStatus =  "בטיפול" | "מאושר" | "נדחה" | "חוזה חתום";
 type FinancingType = "רגיל" | "מסובסד";
@@ -690,15 +691,24 @@ function getGreeting() {
 function getUserName(email?: string) {
   const users: Record<string, string> = {
     "raz.zituni@icloud.com": "רז",
+    "roeyshaltiel1@gmail.com": "רועי",
   };
 
   return email ? users[email] || email : "";
+}
+function getUserAvatar(email?: string) {
+  if (email === "roeyshaltiel1@gmail.com") {
+    return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/roey.jpeg";
+  }
+
+  return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/raz.jpeg";
 }
 export default function Home() {
   const [activePage, setActivePage] = useState<PageTab>("dashboard");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [loginEmail, setLoginEmail] = useState("");
 const [loginPassword, setLoginPassword] = useState("");
+const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [formData, setFormData] = useState<DealFormData>(defaultFormState);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1017,13 +1027,15 @@ console.log("Delete error:", error);
   
           <button
             onClick={async () => {
-             
+              setIsLoggingIn(true);
+              await new Promise((resolve) => setTimeout(resolve, 800));
               const { error } = await supabase.auth.signInWithPassword({
                 email: loginEmail,
                 password: loginPassword,
               });
   
               if (error) {
+                setIsLoggingIn(false);
                 alert(error.message);
                 return;
               }
@@ -1032,7 +1044,11 @@ console.log("Delete error:", error);
             }}
             className="w-full p-4 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15 transition-all backdrop-blur shadow-[0_0_15px_rgba(34,211,238,0.15)]"
           >
-            התחברות
+            {isLoggingIn ? (
+  <span className="mx-auto block h-5 w-5 rounded-full border-2 border-cyan-300/20 border-t-cyan-300 animate-spin shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
+) : (
+  "התחברות"
+)}
           </button>
         </div>
       </div>
@@ -1067,8 +1083,9 @@ console.log("Delete error:", error);
             <div className="mt-2 flex flex-row-reverse items-center justify-center gap-3 text-cyan-300">
 
   <div className="relative">
+    
     <img
-      src="https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/raz.jpeg"
+      src={getUserAvatar(currentUser?.email)}
       alt="Profile"
       className="h-10 w-10 rounded-full object-cover border border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.35)]"
     />
