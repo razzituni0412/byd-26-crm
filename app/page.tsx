@@ -694,10 +694,10 @@ function getUserName(email?: string) {
     "roeyshaltiel1@gmail.com": "רועי",
   };
 
-  return email ? users[email] || email : "";
+  return email ? users[email.toLowerCase()] || email : "";
 }
 function getUserAvatar(email?: string) {
-  if (email === "roeyshaltiel1@gmail.com") {
+  if (email?.toLowerCase() === "roeyshaltiel1@gmail.com") {
     return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/roey.jpeg";
   }
 
