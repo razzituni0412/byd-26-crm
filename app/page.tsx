@@ -1582,13 +1582,13 @@ console.log("Delete error:", error);
               <div className="glass-card gradient-border rounded-2xl p-3">
   <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-cyan-100">
     <CalendarDays className="h-4 w-4 text-cyan-300" />
-    סינון עסקאות לפי חודש
+   הצגת עסקאות לפי חודש
   </div>
 
   <select
     value={selectedPeriodValue}
     onChange={(e) => setSelectedPeriodValue(e.target.value)}
-    className="w-full rounded-xl border border-cyan-500/30 bg-slate-950/90 px-4 py-3 text-right text-sm font-bold text-cyan-100 outline-none"
+    className="mx-auto block w-[210px] rounded-xl border border-cyan-500/40 bg-slate-950 px-4 py-2.5 text-center text-sm font-bold text-cyan-100 shadow-[0_0_18px_rgba(34,211,238,0.18)] outline-none"
   >
     {DASHBOARD_PERIOD_OPTIONS.map((option) => (
       <option key={option.value} value={option.value} className="bg-slate-900">
