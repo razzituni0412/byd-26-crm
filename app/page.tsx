@@ -1579,6 +1579,24 @@ console.log("Delete error:", error);
               exit={{ opacity: 0, y: -8 }}
               className="space-y-3"
             >
+              <div className="glass-card gradient-border rounded-2xl p-3">
+  <div className="mb-2 flex items-center gap-2 text-sm font-semibold text-cyan-100">
+    <CalendarDays className="h-4 w-4 text-cyan-300" />
+    סינון עסקאות לפי חודש
+  </div>
+
+  <select
+    value={selectedPeriodValue}
+    onChange={(e) => setSelectedPeriodValue(e.target.value)}
+    className="w-full rounded-xl border border-cyan-500/30 bg-slate-950/90 px-4 py-3 text-right text-sm font-bold text-cyan-100 outline-none"
+  >
+    {DASHBOARD_PERIOD_OPTIONS.map((option) => (
+      <option key={option.value} value={option.value} className="bg-slate-900">
+        {option.label}
+      </option>
+    ))}
+  </select>
+</div>
               {periodDeals.length === 0 ? (
                 <div className="glass-card gradient-border rounded-2xl p-5 text-sm text-cyan-200/75">
                   אין עסקאות להצגה.
