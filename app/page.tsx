@@ -1579,12 +1579,12 @@ console.log("Delete error:", error);
               exit={{ opacity: 0, y: -8 }}
               className="space-y-3"
             >
-              {deals.length === 0 ? (
+              {periodDeals.length === 0 ? (
                 <div className="glass-card gradient-border rounded-2xl p-5 text-sm text-cyan-200/75">
                   אין עסקאות להצגה.
                 </div>
               ) : (
-                deals.map((deal) => {
+                periodDeals.map((deal) => {
                   const profitability = getProfitabilityAccent(deal.interestRate);
                   return (
                   <motion.article
