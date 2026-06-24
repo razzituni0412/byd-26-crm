@@ -1160,7 +1160,7 @@ console.log("Delete error:", error);
              <div className="glass-card gradient-border overflow-hidden rounded-2xl px-4 py-3">
              <div
   className="inline-flex items-center whitespace-nowrap text-sm font-semibold text-cyan-100"
-  style={{ animation: "marquee 35s linear infinite" }}
+  style={{ animation: "marquee 50s linear infinite" }}
 >
   <Landmark className="mx-2 inline h-4 w-4 text-cyan-300" />
   <span className="text-cyan-300">
