@@ -1189,6 +1189,10 @@ console.log("Delete error:", error);
   <span className="text-emerald-300">
     שער הדולר עומד על {marketData ? `${marketData.usdIls.toFixed(3)} ₪` : "טוען..."}
   </span>
+
+  <span className="mx-12 text-cyan-300/20">
+  • • •
+</span>
   
   <Landmark className="mx-2 inline h-4 w-4 text-cyan-300" />
   <span className="text-cyan-300">
