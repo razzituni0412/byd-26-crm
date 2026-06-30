@@ -16,6 +16,7 @@ import {
   Percent,
   PlusCircle,
   ShieldCheck,
+  UserCog,
   Plus,
   Target,
   Trash2,
@@ -37,6 +38,29 @@ import { getMaxListeners } from "events";
 type DealStatus =  "בטיפול" | "מאושר" | "נדחה" | "חוזה חתום";
 type FinancingType = "רגיל" | "מסובסד";
 type PageTab = "dashboard" | "add" | "list" | "amortization";
+
+type AdminAuthUser = {
+  id: string;
+  email: string;
+};
+
+type UserRole = "admin_agent" | "admin" | "agent";
+
+function hasPersonalDashboard(role: UserRole): boolean {
+  return role === "admin_agent" || role === "agent";
+}
+
+function hasPersonalDeals(role: UserRole): boolean {
+  return role === "admin_agent" || role === "agent";
+}
+
+function canAccessManagement(role: UserRole): boolean {
+  return role === "admin" || role === "admin_agent";
+}
+
+function canViewOtherUsers(role: UserRole): boolean {
+  return role === "admin" || role === "admin_agent";
+}
 
 type Deal = {
   id: string;
@@ -304,6 +328,38 @@ if (error) {
     })
   );
 }
+
+async function loadUserRole(
+  userId: string,
+): Promise<{ role: UserRole; canViewAs: boolean }> {
+  const defaultRole = { role: "agent" as const, canViewAs: false };
+
+  const { data, error } = await supabase
+    .from("roles")
+    .select("role, can_view_as")
+    .eq("user_id", userId)
+    .maybeSingle();
+
+  if (error) {
+    console.error("Error loading user role:", error);
+    return defaultRole;
+  }
+
+  if (!data) {
+    return defaultRole;
+  }
+
+  const validRoles: UserRole[] = ["admin_agent", "admin", "agent"];
+  const role = validRoles.includes(data.role as UserRole)
+    ? (data.role as UserRole)
+    : "agent";
+
+  return {
+    role,
+    canViewAs: Boolean(data.can_view_as),
+  };
+}
+
 const BYD_MODELS = [
   { model: "Dolphin Surf Boost", price: 114990 },
   { model: "Dolphin Surf Comfort", price: 123990 },
@@ -695,6 +751,7 @@ function getUserName(email?: string) {
   const users: Record<string, string> = {
     "raz.zituni@icloud.com": "רז",
     "roeyshaltiel1@gmail.com": "רועי",
+    "hodr@shlomo.co.il": "הוד",
   };
 
   return email ? users[email.toLowerCase()] || email : "";
@@ -703,12 +760,17 @@ function getUserAvatar(email?: string) {
   if (email?.toLowerCase() === "roeyshaltiel1@gmail.com") {
     return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/roey.jpeg";
   }
-
+  if (email?.toLowerCase() === "hodr@shlomo.co.il") {
+    return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/hod.jpeg";
+  }
   return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/raz.jpeg";
 }
+
 export default function Home() {
   const [activePage, setActivePage] = useState<PageTab>("dashboard");
   const [currentUser, setCurrentUser] = useState<any>(null);
+  const [userRole, setUserRole] = useState<UserRole>("agent");
+  const [canViewAs, setCanViewAs] = useState(false);
   const [loginEmail, setLoginEmail] = useState("");
 const [loginPassword, setLoginPassword] = useState("");
 const [isLoggingIn, setIsLoggingIn] = useState(false);
@@ -724,6 +786,52 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [agents, setAgents] = useState<string[]>([]);
   const [isAgentModalOpen, setIsAgentModalOpen] = useState(false);
   const [newAgentName, setNewAgentName] = useState("");
+  const [isManagementMenuOpen, setIsManagementMenuOpen] = useState(false);
+  const [adminUsers, setAdminUsers] = useState<AdminAuthUser[]>([]);
+  const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
+  const [adminUsersError, setAdminUsersError] = useState<string | null>(null);
+  const managementMenuRef = useRef<HTMLDivElement>(null);
+  const showManagementButton = canAccessManagement(userRole);
+  const showPersonalDashboard = hasPersonalDashboard(userRole);
+  const showPersonalDeals = hasPersonalDeals(userRole);
+
+  const loadAdminUsers = useCallback(async () => {
+    setIsLoadingAdminUsers(true);
+    setAdminUsersError(null);
+
+    try {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+
+      if (!session?.access_token) {
+        setAdminUsers([]);
+        setAdminUsersError("לא ניתן לטעון משתמשים");
+        return;
+      }
+
+      const response = await fetch("/api/admin/users", {
+        headers: {
+          Authorization: `Bearer ${session.access_token}`,
+        },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setAdminUsers([]);
+        setAdminUsersError(data.error || "שגיאה בטעינת משתמשים");
+        return;
+      }
+
+      setAdminUsers(data.users ?? []);
+    } catch {
+      setAdminUsers([]);
+      setAdminUsersError("שגיאה בטעינת משתמשים");
+    } finally {
+      setIsLoadingAdminUsers(false);
+    }
+  }, []);
+
   useEffect(() => {
     async function initialize() {
       const {
@@ -731,9 +839,25 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
       } = await supabase.auth.getUser();
       
       setCurrentUser(user);
-      const loadedDeals = await loadDeals();
-  
-      setDeals(loadedDeals);
+
+      if (user) {
+        const { role, canViewAs: viewAs } = await loadUserRole(user.id);
+        setUserRole(role);
+        setCanViewAs(viewAs);
+
+        if (role !== "admin") {
+          const loadedDeals = await loadDeals();
+          setDeals(loadedDeals);
+        } else {
+          setDeals([]);
+          setActivePage("amortization");
+        }
+      } else {
+        setUserRole("agent");
+        setCanViewAs(false);
+        setDeals([]);
+      }
+
       setTargetsByPeriod(loadTargetsByPeriod());
       setAgents(loadAgents());
       setSelectedPeriodValue(getDefaultDashboardPeriodValue());
@@ -742,6 +866,33 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   
     initialize();
   }, []);
+  useEffect(() => {
+    if (!isManagementMenuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (
+        managementMenuRef.current &&
+        !managementMenuRef.current.contains(event.target as Node)
+      ) {
+        setIsManagementMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isManagementMenuOpen]);
+  useEffect(() => {
+    if (!isManagementMenuOpen || !canViewOtherUsers(userRole)) return;
+    loadAdminUsers();
+  }, [isManagementMenuOpen, userRole, loadAdminUsers]);
+  useEffect(() => {
+    if (
+      (activePage === "dashboard" && !showPersonalDashboard) ||
+      ((activePage === "add" || activePage === "list") && !showPersonalDeals)
+    ) {
+      setActivePage("amortization");
+    }
+  }, [activePage, showPersonalDashboard, showPersonalDeals]);
   useEffect(() => {
     async function loadMarketData() {
       try {
@@ -1016,6 +1167,11 @@ console.log("Delete error:", error);
       icon: <Calculator className="h-4 w-4" />,
     },
   ];
+  const visibleTabs = tabs.filter((tab) => {
+    if (tab.key === "dashboard") return showPersonalDashboard;
+    if (tab.key === "add" || tab.key === "list") return showPersonalDeals;
+    return true;
+  });
   if (!currentUser) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#03060d] text-white">
@@ -1089,6 +1245,79 @@ console.log("Delete error:", error);
     התנתקות
   </button>
 </div>
+          {showManagementButton && (
+            <div ref={managementMenuRef} className="absolute top-0 right-0">
+              <button
+                type="button"
+                aria-expanded={isManagementMenuOpen}
+                aria-haspopup="menu"
+                onClick={() => setIsManagementMenuOpen((open) => !open)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.12)] backdrop-blur transition-all hover:bg-cyan-500/20 hover:text-cyan-100"
+              >
+                <UserCog className="h-3.5 w-3.5 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                ניהול
+              </button>
+
+              <AnimatePresence>
+                {isManagementMenuOpen && (
+                  <motion.div
+                    role="menu"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="glass-card gradient-border absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-cyan-500/25 bg-slate-950/80 p-2 shadow-[0_0_24px_rgba(34,211,238,0.2)] backdrop-blur"
+                  >
+                    <div className="max-h-56 space-y-1 overflow-y-auto px-1 py-1">
+                      {isLoadingAdminUsers ? (
+                        <div className="flex items-center justify-center py-4">
+                          <span className="h-4 w-4 rounded-full border-2 border-cyan-300/20 border-t-cyan-300 animate-spin shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
+                        </div>
+                      ) : adminUsersError ? (
+                        <p className="px-2 py-2 text-center text-xs text-cyan-200/75">
+                          {adminUsersError}
+                        </p>
+                      ) : adminUsers.length === 0 ? (
+                        <p className="px-2 py-2 text-center text-xs text-cyan-200/75">
+                          אין משתמשים להצגה
+                        </p>
+                      ) : (
+                        adminUsers.map((user) => (
+                          <div
+                            key={user.id}
+                            className="flex flex-row-reverse items-center gap-2.5 rounded-lg px-2 py-2"
+                          >
+                            <img
+                              src={getUserAvatar(user.email)}
+                              alt={getUserName(user.email)}
+                              className="h-8 w-8 shrink-0 rounded-full border border-cyan-400 object-cover shadow-[0_0_10px_rgba(34,211,238,0.3)]"
+                            />
+                            <div className="min-w-0 flex-1 text-right">
+                              <p className="truncate text-xs font-semibold text-cyan-200">
+                                {getUserName(user.email)}
+                              </p>
+                              <p className="truncate text-[11px] text-cyan-300/70">
+                                {user.email}
+                              </p>
+                            </div>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="my-1 border-t border-cyan-400/20" />
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => setIsManagementMenuOpen(false)}
+                      className="w-full rounded-lg px-3 py-2 text-right text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/10 hover:text-cyan-100"
+                    >
+                      חזרה לחשבון שלי
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
             <img
               src="/header-logo.png"
               alt="BYD Haifa"
@@ -1099,7 +1328,6 @@ console.log("Delete error:", error);
             <div className="mt-2 flex flex-row-reverse items-center justify-center gap-3 text-cyan-300">
 
   <div className="relative">
-    
     <img
       src={getUserAvatar(currentUser?.email)}
       alt="Profile"
@@ -1127,8 +1355,13 @@ console.log("Delete error:", error);
 
         </header>
 
-        <nav className="glass-card gradient-border mb-5 grid grid-cols-2 gap-2 rounded-2xl p-2 sm:grid-cols-4">
-          {tabs.map((item) => (
+        <nav
+          className="glass-card gradient-border mb-5 grid gap-2 rounded-2xl p-2"
+          style={{
+            gridTemplateColumns: `repeat(${Math.min(visibleTabs.length, 4)}, minmax(0, 1fr))`,
+          }}
+        >
+          {visibleTabs.map((item) => (
             <motion.button
               key={item.key}
               onClick={() => setActivePage(item.key)}
@@ -1149,7 +1382,7 @@ console.log("Delete error:", error);
         </nav>
 
         <AnimatePresence mode="wait">
-          {activePage === "dashboard" && (
+          {activePage === "dashboard" && showPersonalDashboard && (
             <motion.section
               key="dashboard"
               initial={{ opacity: 0, y: 14 }}
@@ -1409,7 +1642,7 @@ console.log("Delete error:", error);
             </motion.section>
           )}
 
-          {activePage === "add" && (
+          {activePage === "add" && showPersonalDeals && (
             <motion.section
               key="add"
               initial={{ opacity: 0, y: 14 }}
@@ -1653,7 +1886,7 @@ console.log("Delete error:", error);
             </motion.section>
           )}
 
-          {activePage === "list" && (
+          {activePage === "list" && showPersonalDeals && (
             <motion.section
               key="list"
               initial={{ opacity: 0, y: 14 }}
