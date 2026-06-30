@@ -17,6 +17,7 @@ import {
   PlusCircle,
   ShieldCheck,
   UserCog,
+  Eye,
   Plus,
   Target,
   Trash2,
@@ -82,6 +83,14 @@ const STORAGE_KEY = "future-crm-deals-v1";
 const TARGETS_STORAGE_KEY = "future-crm-monthly-targets-v1";
 const AGENTS_STORAGE_KEY = "future-crm-agents-v1";
 const TICKER_MAX_DEALS = 20;
+
+function getDealsStorageKey(userId: string) {
+  return `${STORAGE_KEY}:${userId}`;
+}
+
+function getTargetsStorageKey(userId: string) {
+  return `${TARGETS_STORAGE_KEY}:${userId}`;
+}
 
 type MonthlyTargets = {
   dealsTarget: number;
@@ -257,8 +266,12 @@ function isLegacyMonthlyTargetsFormat(parsed: unknown): parsed is Partial<Monthl
   return hasLegacyFields && !hasPeriodKeys;
 }
 
-function loadTargetsByPeriod(): MonthlyTargetsByPeriod {
-  const stored = window.localStorage.getItem(TARGETS_STORAGE_KEY);
+function loadTargetsByPeriod(userId: string): MonthlyTargetsByPeriod {
+  const scopedKey = getTargetsStorageKey(userId);
+  let stored = window.localStorage.getItem(scopedKey);
+  if (!stored) {
+    stored = window.localStorage.getItem(TARGETS_STORAGE_KEY);
+  }
   if (!stored) return {};
   try {
     const parsed = JSON.parse(stored) as unknown;
@@ -291,19 +304,19 @@ function getTargetsForPeriod(
   return targetsByPeriod[periodKey] ?? { ...DEFAULT_MONTHLY_TARGETS };
 }
 
-async function loadDeals(): Promise<Deal[]> {
+async function loadDeals(userId: string): Promise<Deal[]> {
   const {
     data: { user },
   } = await supabase.auth.getUser();
   
-  if (!user) {
+  if (!user || !userId) {
     return [];
   }
   
   const { data, error } = await supabase
   .from("deals")
   .select("*")
-  .eq("user_id", user.id)
+  .eq("user_id", userId)
   .order("date", { ascending: false });
 
 if (error) {
@@ -790,10 +803,15 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminAuthUser[]>([]);
   const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
   const [adminUsersError, setAdminUsersError] = useState<string | null>(null);
+  const [viewedUserId, setViewedUserId] = useState<string | null>(null);
+  const [viewedUserEmail, setViewedUserEmail] = useState<string | null>(null);
   const managementMenuRef = useRef<HTMLDivElement>(null);
+  const dataLoadedForUserIdRef = useRef<string | null>(null);
+  const effectiveUserId = viewedUserId ?? currentUser?.id;
+  const isViewingAsUser = Boolean(canViewAs && viewedUserId);
   const showManagementButton = canAccessManagement(userRole);
-  const showPersonalDashboard = hasPersonalDashboard(userRole);
-  const showPersonalDeals = hasPersonalDeals(userRole);
+  const showPersonalDashboard = hasPersonalDashboard(userRole) || isViewingAsUser;
+  const showPersonalDeals = hasPersonalDeals(userRole) || isViewingAsUser;
 
   const loadAdminUsers = useCallback(async () => {
     setIsLoadingAdminUsers(true);
@@ -845,11 +863,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
         setUserRole(role);
         setCanViewAs(viewAs);
 
-        if (role !== "admin") {
-          const loadedDeals = await loadDeals();
-          setDeals(loadedDeals);
-        } else {
-          setDeals([]);
+        if (role === "admin") {
           setActivePage("amortization");
         }
       } else {
@@ -858,7 +872,6 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
         setDeals([]);
       }
 
-      setTargetsByPeriod(loadTargetsByPeriod());
       setAgents(loadAgents());
       setSelectedPeriodValue(getDefaultDashboardPeriodValue());
       setStorageReady(true);
@@ -866,6 +879,43 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   
     initialize();
   }, []);
+  useEffect(() => {
+    if (!canViewAs && viewedUserId) {
+      setViewedUserId(null);
+      setViewedUserEmail(null);
+    }
+  }, [canViewAs, viewedUserId]);
+  useEffect(() => {
+    if (!currentUser?.id || !effectiveUserId) return;
+
+    if (userRole === "admin" && !viewedUserId) {
+      setDeals([]);
+      setTargetsByPeriod({});
+      dataLoadedForUserIdRef.current = effectiveUserId;
+      return;
+    }
+
+    let cancelled = false;
+
+    async function reloadEffectiveUserData() {
+      dataLoadedForUserIdRef.current = null;
+      const loadedDeals = await loadDeals(effectiveUserId);
+      const loadedTargets = loadTargetsByPeriod(effectiveUserId);
+
+      if (cancelled) return;
+
+      setDeals(loadedDeals);
+      setTargetsByPeriod(loadedTargets);
+      setSelectedPeriodValue(getDefaultDashboardPeriodValue());
+      dataLoadedForUserIdRef.current = effectiveUserId;
+    }
+
+    reloadEffectiveUserData();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [effectiveUserId, currentUser?.id, userRole, viewedUserId]);
   useEffect(() => {
     if (!isManagementMenuOpen) return;
 
@@ -907,14 +957,21 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
     loadMarketData();
   }, []);
   useEffect(() => {
-    if (!storageReady) return;
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(deals));
-  }, [deals, storageReady]);
+    if (!storageReady || !effectiveUserId) return;
+    if (dataLoadedForUserIdRef.current !== effectiveUserId) return;
+    if (userRole === "admin" && !viewedUserId) return;
+    localStorage.setItem(getDealsStorageKey(effectiveUserId), JSON.stringify(deals));
+  }, [deals, storageReady, effectiveUserId, userRole, viewedUserId]);
 
   useEffect(() => {
-    if (!storageReady) return;
-    localStorage.setItem(TARGETS_STORAGE_KEY, JSON.stringify(targetsByPeriod));
-  }, [targetsByPeriod, storageReady]);
+    if (!storageReady || !effectiveUserId) return;
+    if (dataLoadedForUserIdRef.current !== effectiveUserId) return;
+    if (userRole === "admin" && !viewedUserId) return;
+    localStorage.setItem(
+      getTargetsStorageKey(effectiveUserId),
+      JSON.stringify(targetsByPeriod),
+    );
+  }, [targetsByPeriod, storageReady, effectiveUserId, userRole, viewedUserId]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -1246,7 +1303,13 @@ console.log("Delete error:", error);
   </button>
 </div>
           {showManagementButton && (
-            <div ref={managementMenuRef} className="absolute top-0 right-0">
+            <div ref={managementMenuRef} className="absolute top-0 right-0 flex flex-row-reverse items-center gap-2">
+              {canViewAs && viewedUserId && viewedUserEmail && (
+                <span className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.12)] backdrop-blur">
+                  <Eye className="h-3.5 w-3.5 shrink-0 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                  מצב מנהל | הנתונים של: {getUserName(viewedUserEmail)}
+                </span>
+              )}
               <button
                 type="button"
                 aria-expanded={isManagementMenuOpen}
@@ -1283,9 +1346,27 @@ console.log("Delete error:", error);
                         </p>
                       ) : (
                         adminUsers.map((user) => (
-                          <div
+                          <button
                             key={user.id}
-                            className="flex flex-row-reverse items-center gap-2.5 rounded-lg px-2 py-2"
+                            type="button"
+                            role="menuitem"
+                            disabled={!canViewAs}
+                            onClick={() => {
+                              if (!canViewAs) return;
+                              setViewedUserId(user.id);
+                              setViewedUserEmail(user.email);
+                              setActivePage("dashboard");
+                              setIsManagementMenuOpen(false);
+                            }}
+                            className={`flex w-full flex-row-reverse items-center gap-2.5 rounded-lg px-2 py-2 text-right transition-all ${
+                              !canViewAs
+                                ? "cursor-not-allowed opacity-50"
+                                : "hover:bg-cyan-500/10"
+                            } ${
+                              viewedUserId === user.id
+                                ? "border border-cyan-400/25 bg-cyan-500/15"
+                                : ""
+                            }`}
                           >
                             <img
                               src={getUserAvatar(user.email)}
@@ -1300,7 +1381,7 @@ console.log("Delete error:", error);
                                 {user.email}
                               </p>
                             </div>
-                          </div>
+                          </button>
                         ))
                       )}
                     </div>
@@ -1308,7 +1389,11 @@ console.log("Delete error:", error);
                     <button
                       type="button"
                       role="menuitem"
-                      onClick={() => setIsManagementMenuOpen(false)}
+                      onClick={() => {
+                        setViewedUserId(null);
+                        setViewedUserEmail(null);
+                        setIsManagementMenuOpen(false);
+                      }}
                       className="w-full rounded-lg px-3 py-2 text-right text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/10 hover:text-cyan-100"
                     >
                       חזרה לחשבון שלי
@@ -1849,7 +1934,7 @@ console.log("Delete error:", error);
                       min={0}
                       step="0.01"
                       required
-                      value={formData.interestRate === 0 ? "" : formData.interestRate}
+                      value={formData.interestRate}
                       onChange={(e) =>
                         setFormData((prev) => ({
                           ...prev,
