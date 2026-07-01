@@ -779,6 +779,15 @@ function getUserAvatar(email?: string) {
   return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/raz.jpeg";
 }
 
+function getUserHeaderLogo(email?: string) {
+  const logos: Record<string, string> = {
+    "raz.zituni@icloud.com": "/header-logo.png",
+    "roeyshaltiel1@gmail.com": "/logos/roi-header-logo.png",
+  };
+
+  return email ? logos[email.toLowerCase()] ?? "/header-logo.png" : "/header-logo.png";
+}
+
 export default function Home() {
   const [activePage, setActivePage] = useState<PageTab>("dashboard");
   const [currentUser, setCurrentUser] = useState<any>(null);
@@ -1404,7 +1413,7 @@ console.log("Delete error:", error);
             </div>
           )}
             <img
-              src="/header-logo.png"
+              src={getUserHeaderLogo(currentUser?.email)}
               alt="BYD Haifa"
               className="mx-auto block h-auto w-[75%] max-w-[560px] sm:w-[70%]"
             />
