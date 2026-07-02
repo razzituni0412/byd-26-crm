@@ -28,7 +28,9 @@ import {
   Share2,
   X,
   SunMedium,
+  CloudSun,
   Moon,
+  Sparkles,
   Landmark,
   BarChart3
 
@@ -380,6 +382,8 @@ const BYD_MODELS = [
   { model: "Dolphin Design", price: 156990 },
   { model: "Atto 2 EV Comfort", price: 148990 },
   { model: "Atto 2 Dmi Boost", price: 149990 },
+  { model: "Atto 3 EVO Design", price: 154990 },
+  { model: "Atto 3 EVO Excellence", price: 164990 },
   { model: "Sealion 5 Dmi Comfort", price: 166990 },
   { model: "Sealion 5 Dmi Design", price: 171990 },
   { model: "Seal U EV Comfort", price: 194990 },
@@ -399,6 +403,12 @@ const BYD_MODELS = [
 const BYD_PRICE_BY_MODEL = Object.fromEntries(
   BYD_MODELS.map((entry) => [entry.model, entry.price]),
 ) as Record<string, number>;
+
+const MANUAL_CAR_MODEL_OPTION = "אחר / הזנה ידנית";
+
+function isKnownBydModel(model: string): boolean {
+  return model in BYD_PRICE_BY_MODEL;
+}
 
 const STATUS_OPTIONS: DealStatus[] = ["בטיפול", "מאושר", "נדחה","חוזה חתום"];
 const LOAN_TERM_MIN = 12;
@@ -719,42 +729,98 @@ function getProfitabilityAccent(interestRate: number) {
     indicatorLabel: "רווחיות נמוכה",
   };
 }
-function getGreeting() {
-  const hour = new Date().getHours();
+const HEBREW_WEEKDAYS = [
+  "יום ראשון",
+  "יום שני",
+  "יום שלישי",
+  "יום רביעי",
+  "יום חמישי",
+  "יום שישי",
+  "יום שבת",
+] as const;
+
+function formatLiveDateTime(date: Date) {
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${HEBREW_WEEKDAYS[date.getDay()]} · ${day}/${month} · ${hours}:${minutes}`;
+}
+
+type GreetingPeriod = "morning" | "afternoon" | "evening" | "night";
+
+function getGreeting(date = new Date()): { text: string; period: GreetingPeriod } {
+  const hour = date.getHours();
 
   if (hour >= 5 && hour < 12) {
-    return {
-      text: "בוקר טוב",
-      icon: (
-        <SunMedium className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-      ),
-    };
+    return { text: "בוקר טוב", period: "morning" };
   }
 
   if (hour >= 12 && hour < 17) {
-    return {
-      text: "צהריים טובים",
-      icon: (
-        <SunMedium className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-      ),
-    };
+    return { text: "צהריים טובים", period: "afternoon" };
   }
 
-  if (hour >= 17 && hour < 22) {
-    return {
-      text: "ערב טוב",
-      icon: (
-        <Moon className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-      ),
-    };
+  if (hour >= 17 && hour < 21) {
+    return { text: "ערב טוב", period: "evening" };
   }
 
-  return {
-    text: "לילה טוב",
-    icon: (
-      <Moon className="h-4 w-4 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
-    ),
-  };
+  return { text: "לילה טוב", period: "night" };
+}
+
+function GreetingPeriodIcon({ period }: { period: GreetingPeriod }) {
+  const iconClassName =
+    "h-[22px] w-[22px] shrink-0 text-[rgba(205,245,255,0.88)] drop-shadow-[0_0_6px_rgba(34,211,238,0.10)]";
+
+  if (period === "morning") return <SunMedium aria-hidden className={iconClassName} />;
+  if (period === "afternoon") return <CloudSun aria-hidden className={iconClassName} />;
+  if (period === "evening") return <Moon aria-hidden className={iconClassName} />;
+  return <Sparkles aria-hidden className={iconClassName} />;
+}
+
+function GreetingSection({
+  userName,
+  avatarSrc,
+}: {
+  userName: string;
+  avatarSrc: string;
+}) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const intervalId = window.setInterval(() => setNow(new Date()), 60_000);
+    return () => window.clearInterval(intervalId);
+  }, []);
+
+  const greeting = getGreeting(now);
+
+  return (
+    <div className="mt-8 flex items-center justify-center gap-4" dir="ltr">
+      <div className="relative shrink-0">
+        <img
+          src={avatarSrc}
+          alt="Profile"
+          className="h-12 w-12 rounded-full border border-cyan-400 object-cover shadow-[0_0_12px_rgba(34,211,238,0.35)]"
+        />
+        <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full border border-slate-900 bg-green-400" />
+      </div>
+
+      <div className="flex min-w-0 flex-col items-start" dir="rtl">
+        <div className="flex items-center gap-2">
+          <span className="text-[16px] font-bold leading-snug text-[rgba(205,245,255,0.88)]">
+            {greeting.text}, {userName}
+          </span>
+          <GreetingPeriodIcon period={greeting.period} />
+        </div>
+
+        <span
+          className="mt-2 text-[11px] font-normal leading-none tracking-tight tabular-nums text-[rgba(205,245,255,0.68)]"
+          dir="ltr"
+        >
+          {formatLiveDateTime(now)}
+        </span>
+      </div>
+    </div>
+  );
 }
  
 
@@ -798,6 +864,7 @@ const [loginPassword, setLoginPassword] = useState("");
 const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [formData, setFormData] = useState<DealFormData>(defaultFormState);
+  const [isManualCarModelEntry, setIsManualCarModelEntry] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [targetsByPeriod, setTargetsByPeriod] = useState<MonthlyTargetsByPeriod>({});
   const [selectedPeriodValue, setSelectedPeriodValue] = useState(
@@ -1078,6 +1145,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const resetForm = () => {
     setFormData(defaultFormState);
+    setIsManualCarModelEntry(false);
     setEditingId(null);
   };
 
@@ -1108,7 +1176,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
       !/^\d{4}-\d{2}-\d{2}$/.test(dealDate) ||
       !formData.agentName.trim() ||
       !formData.customerName.trim() ||
-      !formData.carModel
+      !formData.carModel.trim()
     ) {
       return;
     }
@@ -1129,7 +1197,7 @@ if (!user) {
     date: dealDate,
     agent_name: agentName,
     customer_name: formData.customerName,
-    car_model: formData.carModel,
+    car_model: formData.carModel.trim(),
     vehicle_price: Number(formData.vehiclePrice),
     loan_term_months: normalizeLoanTermMonths(formData.loanTermMonths),
     financing_amount: Number(formData.financingAmount),
@@ -1163,7 +1231,7 @@ if (!user) {
     user_id: user.id,
     agent_name: agentName,
     customer_name: formData.customerName,
-    car_model: formData.carModel,
+    car_model: formData.carModel.trim(),
     vehicle_price: Number(formData.vehiclePrice),
     loan_term_months: normalizeLoanTermMonths(formData.loanTermMonths),
     financing_amount: Number(formData.financingAmount),
@@ -1192,6 +1260,7 @@ if (!user) {
 
   const startEdit = (deal: Deal) => {
     setEditingId(deal.id);
+    setIsManualCarModelEntry(!isKnownBydModel(deal.carModel));
     setFormData({
       date: deal.date,
       agentName: deal.agentName,
@@ -1292,6 +1361,9 @@ console.log("Delete error:", error);
       </div>
     );
   }
+
+  const displayUserName = getUserName(currentUser.email);
+
   return (
     <div className="min-h-screen bg-[#03060d] text-white">
       <div className="cinematic-bg pointer-events-none fixed inset-0" />
@@ -1417,33 +1489,11 @@ console.log("Delete error:", error);
               alt="BYD Haifa"
               className="mx-auto block h-auto w-[75%] max-w-[560px] sm:w-[70%]"
             />
-            
-            
-            <div className="mt-2 flex flex-row-reverse items-center justify-center gap-3 text-cyan-300">
 
-  <div className="relative">
-    <img
-      src={getUserAvatar(currentUser?.email)}
-      alt="Profile"
-      className="h-10 w-10 rounded-full object-cover border border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.35)]"
-    />
-    <span className="absolute bottom-0 right-0 h-3 w-3 rounded-full bg-green-400 border border-slate-900" />
-  </div>
-
-  <div className="flex flex-col items-end">
-    <div className="flex items-center gap-2 text-sm font-semibold text-cyan-200">
-      {getGreeting().icon}
-      <span>
-        {getGreeting().text} {getUserName(currentUser?.email)}
-      </span>
-    </div>
-
-    <span className="text-xs text-cyan-300/70">
-      מה שלומך היום?
-    </span>
-  </div>
-
-</div>
+            <GreetingSection
+              userName={displayUserName}
+              avatarSrc={getUserAvatar(currentUser?.email)}
+            />
             
           </div>
 
@@ -1861,30 +1911,51 @@ console.log("Delete error:", error);
 
                 <Field label="דגם BYD" icon={<CarFront className="h-4 w-4" />}>
                   <select
-                    value={formData.carModel}
+                    value={
+                      isManualCarModelEntry ? MANUAL_CAR_MODEL_OPTION : formData.carModel
+                    }
                     onChange={(e) => {
-                      const model = e.target.value;
-                      const price = BYD_PRICE_BY_MODEL[model];
+                      const selection = e.target.value;
+                      if (selection === MANUAL_CAR_MODEL_OPTION) {
+                        setIsManualCarModelEntry(true);
+                        setFormData((prev) => ({ ...prev, carModel: "" }));
+                        return;
+                      }
+                      setIsManualCarModelEntry(false);
+                      const price = BYD_PRICE_BY_MODEL[selection];
                       setFormData((prev) => ({
                         ...prev,
-                        carModel: model,
+                        carModel: selection,
                         ...(price !== undefined ? { vehiclePrice: price } : {}),
                       }));
                     }}
                     className="input-neon"
                   >
-                    {formData.carModel && !BYD_PRICE_BY_MODEL[formData.carModel] && (
-                      <option value={formData.carModel} className="bg-slate-900">
-                        {formData.carModel}
-                      </option>
-                    )}
                     {BYD_MODELS.map(({ model }) => (
                       <option key={model} value={model} className="bg-slate-900">
                         {model}
                       </option>
                     ))}
+                    <option value={MANUAL_CAR_MODEL_OPTION} className="bg-slate-900">
+                      {MANUAL_CAR_MODEL_OPTION}
+                    </option>
                   </select>
                 </Field>
+
+                {isManualCarModelEntry && (
+                  <Field label="דגם (הזנה ידנית)" icon={<CarFront className="h-4 w-4" />}>
+                    <input
+                      type="text"
+                      required
+                      value={formData.carModel}
+                      onChange={(e) =>
+                        setFormData((prev) => ({ ...prev, carModel: e.target.value }))
+                      }
+                      className="input-neon"
+                      placeholder="הזן שם דגם"
+                    />
+                  </Field>
+                )}
 
                 <Field
                   label="מחיר רכב (₪)"

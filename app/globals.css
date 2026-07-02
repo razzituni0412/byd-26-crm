@@ -201,6 +201,19 @@ body {
   opacity: 0.85;
 }
 
+.premium-greeting-text {
+  color: rgba(205, 245, 255, 0.82);
+  text-shadow: 0 0 6px rgba(34, 211, 238, 0.1);
+}
+
+.premium-greeting-text.premium-greeting-text--date {
+  color: rgba(205, 245, 255, 0.7);
+}
+
+svg.premium-greeting-text {
+  filter: drop-shadow(0 0 6px rgba(34, 211, 238, 0.1));
+}
+
 .glass-card {
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.72), rgba(15, 23, 42, 0.45));
   border: 1px solid rgba(56, 189, 248, 0.18);
