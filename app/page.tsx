@@ -2160,7 +2160,11 @@ console.log("Delete error:", error);
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
             >
-              <AmortizationScheduleTab />
+              <AmortizationScheduleTab
+                onReturnHome={() =>
+                  setActivePage(showPersonalDashboard ? "dashboard" : "amortization")
+                }
+              />
             </motion.section>
           )}
         </AnimatePresence>
@@ -2183,7 +2187,7 @@ console.log("Delete error:", error);
   );
 }
 
-function AmortizationScheduleTab() {
+function AmortizationScheduleTab({ onReturnHome }: { onReturnHome: () => void }) {
   const [loanAmount, setLoanAmount] = useState("150000");
   const [termMonths, setTermMonths] = useState("60");
   const [annualRate, setAnnualRate] = useState("6.5");
@@ -2321,6 +2325,10 @@ function AmortizationScheduleTab() {
             annualRate={Number(annualRate)}
             monthlyPayment={result.monthlyPayment}
             onClose={() => setIsOfferModalOpen(false)}
+            onReturnHome={() => {
+              setIsOfferModalOpen(false);
+              onReturnHome();
+            }}
           />
         )}
       </AnimatePresence>
@@ -2450,6 +2458,7 @@ function FinancingOfferModal({
   annualRate,
   monthlyPayment,
   onClose,
+  onReturnHome,
 }: {
   customerName: string;
   onCustomerNameChange: (name: string) => void;
@@ -2460,9 +2469,11 @@ function FinancingOfferModal({
   annualRate: number;
   monthlyPayment: number;
   onClose: () => void;
+  onReturnHome: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
 
   const rateLabel = Number.isInteger(annualRate)
     ? `${annualRate}%`
@@ -2528,12 +2539,14 @@ function FinancingOfferModal({
               title: "הצעת מימון BYD חיפה",
               text: shareText,
             });
+            setShareSuccess(true);
             return;
           }
           await navigator.share({
             title: "הצעת מימון BYD חיפה",
             text: shareText,
           });
+          setShareSuccess(true);
           return;
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") return;
@@ -2541,10 +2554,16 @@ function FinancingOfferModal({
       }
 
       await downloadOfferImage("byd-haifa-financing-offer.png");
+      setShareSuccess(true);
     } finally {
       setIsExporting(false);
     }
   }, [captureOfferImage, downloadOfferImage, isExporting, shareText]);
+
+  const handleReturnHome = useCallback(() => {
+    onClose();
+    onReturnHome();
+  }, [onClose, onReturnHome]);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
@@ -2681,16 +2700,33 @@ function FinancingOfferModal({
           </div>
         </div>
 
-        <motion.button
-          type="button"
-          whileHover={{ y: -1 }}
-          whileTap={{ scale: 0.98 }}
-          onClick={onClose}
-          className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-slate-900/80 px-4 py-2.5 text-sm font-semibold text-cyan-100"
-        >
-          <X className="h-4 w-4" />
-          סגור
-        </motion.button>
+        {shareSuccess ? (
+          <div className="flex w-full flex-col gap-3">
+            <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-center text-sm font-semibold text-emerald-200">
+              ההצעה נשלחה בהצלחה
+            </p>
+            <motion.button
+              type="button"
+              whileHover={{ y: -1 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleReturnHome}
+              className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/45 bg-gradient-to-r from-cyan-600/30 via-blue-600/30 to-cyan-500/30 px-4 py-3.5 text-base font-bold text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.35)]"
+            >
+              חזרה למסך הראשי
+            </motion.button>
+          </div>
+        ) : (
+          <motion.button
+            type="button"
+            whileHover={{ y: -1 }}
+            whileTap={{ scale: 0.98 }}
+            onClick={onClose}
+            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-slate-900/80 px-4 py-2.5 text-sm font-semibold text-cyan-100"
+          >
+            <X className="h-4 w-4" />
+            סגור
+          </motion.button>
+        )}
       </motion.div>
     </div>
   );
