@@ -1,6 +1,7 @@
 "use client";
 import { supabase } from "@/app/supabase";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import dynamic from "next/dynamic";
 import { toPng } from "html-to-image";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -37,6 +38,8 @@ import {
 } from "lucide-react";
 import { NEXT_META_SUFFIX } from "next/dist/lib/constants";
 import { getMaxListeners } from "events";
+
+const Marquee = dynamic(() => import("react-fast-marquee"), { ssr: false });
 
 type DealStatus =  "בטיפול" | "מאושר" | "נדחה" | "חוזה חתום";
 type FinancingType = "רגיל" | "מסובסד";
@@ -826,6 +829,61 @@ function GreetingSection({
 
 
 
+function MarketTickerContent({ marketData }: { marketData: any }) {
+  return (
+    <div
+      dir="rtl"
+      className="inline-flex items-center whitespace-nowrap px-6 text-sm font-semibold text-cyan-100"
+    >
+      <Landmark className="mx-2 inline h-4 w-4 shrink-0 text-cyan-300" />
+      <span className="text-cyan-300">
+        ריבית בנק ישראל עומדת על {marketData ? `${marketData.bankRate.toFixed(2)}%` : "טוען..."}
+      </span>
+
+      <span className="mx-3 shrink-0 text-cyan-300/30">•</span>
+
+      <TrendingUp className="mx-2 inline h-4 w-4 shrink-0 text-red-400" />
+      <span className="text-red-400">
+        ריבית הפריים עומדת על {marketData ? `${marketData.primeRate.toFixed(2)}%` : "טוען..."}
+      </span>
+
+      <span className="mx-3 shrink-0 text-cyan-300/30">•</span>
+
+      <BarChart3 className="mx-2 inline h-4 w-4 shrink-0 text-emerald-400" />
+      <span className="text-emerald-400">
+        {marketData
+          ? `מדד ${marketData.cpiMonth} ${marketData.cpiYear}: ירידה של ${Math.abs(marketData.cpiChange)}% (עודכן ב-${marketData.cpiUpdatedAt})`
+          : "טוען מדד..."}
+      </span>
+
+      <span className="mx-3 shrink-0 text-cyan-300/30">•</span>
+
+      <CircleDollarSign className="mx-2 inline h-4 w-4 shrink-0 text-emerald-300" />
+      <span className="text-emerald-300">
+        שער הדולר עומד על {marketData ? `${marketData.usdIls.toFixed(3)} ₪` : "טוען..."}
+      </span>
+    </div>
+  );
+}
+
+function MarketTicker({ marketData }: { marketData: any }) {
+  return (
+    <div className="glass-card gradient-border overflow-hidden rounded-2xl px-4 py-3">
+      <Marquee
+        direction="right"
+        speed={45}
+        delay={0}
+        pauseOnHover={false}
+        pauseOnClick={false}
+        autoFill
+        gradient={false}
+      >
+        <MarketTickerContent marketData={marketData} />
+      </Marquee>
+    </div>
+  );
+}
+
 function getUserName(email?: string) {
   const users: Record<string, string> = {
     "raz.zituni@icloud.com": "רז",
@@ -1534,72 +1592,7 @@ console.log("Delete error:", error);
               exit={{ opacity: 0, y: -8 }}
               className="space-y-4"
             >
-             <div className="glass-card gradient-border overflow-hidden rounded-2xl px-4 py-3">
-             <div
-  className="inline-flex items-center whitespace-nowrap text-sm font-semibold text-cyan-100"
-  style={{ animation: "marquee 50s linear infinite" }}
->
-  <Landmark className="mx-2 inline h-4 w-4 text-cyan-300" />
-  <span className="text-cyan-300">
-    ריבית בנק ישראל עומדת על {marketData ? `${marketData.bankRate.toFixed(2)}%` : "טוען..."}
-  </span>
-
-  <span className="mx-3 text-cyan-300/30">•</span>
-
-  <TrendingUp className="mx-2 inline h-4 w-4 text-red-400" />
-  <span className="text-red-400">
-    ריבית הפריים עומדת על {marketData ? `${marketData.primeRate.toFixed(2)}%` : "טוען..."}
-  </span>
-
-  <span className="mx-3 text-cyan-300/30">•</span>
-
-  <BarChart3 className="mx-2 inline h-4 w-4 text-emerald-400" />
-  <span className="text-emerald-400">
-    {marketData
-      ? `מדד ${marketData.cpiMonth} ${marketData.cpiYear}: ירידה של ${Math.abs(marketData.cpiChange)}% (עודכן ב-${marketData.cpiUpdatedAt})`
-      : "טוען מדד..."}
-  </span>
-
-  <span className="mx-3 text-cyan-300/30">•</span>
-
-  <CircleDollarSign className="mx-2 inline h-4 w-4 text-emerald-300" />
-  <span className="text-emerald-300">
-    שער הדולר עומד על {marketData ? `${marketData.usdIls.toFixed(3)} ₪` : "טוען..."}
-  </span>
-
-  <span className="mx-12 text-cyan-300/20">
-  • • •
-</span>
-  
-  <Landmark className="mx-2 inline h-4 w-4 text-cyan-300" />
-  <span className="text-cyan-300">
-    ריבית בנק ישראל עומדת על {marketData ? `${marketData.bankRate.toFixed(2)}%` : "טוען..."}
-  </span>
-
-  <span className="mx-3 text-cyan-300/30">•</span>
-
-  <TrendingUp className="mx-2 inline h-4 w-4 text-red-400" />
-  <span className="text-red-400">
-    ריבית הפריים עומדת על {marketData ? `${marketData.primeRate.toFixed(2)}%` : "טוען..."}
-  </span>
-
-  <span className="mx-3 text-cyan-300/30">•</span>
-
-  <BarChart3 className="mx-2 inline h-4 w-4 text-emerald-400" />
-  <span className="text-emerald-400">
-    {marketData
-      ? `מדד ${marketData.cpiMonth} ${marketData.cpiYear}: ירידה של ${Math.abs(marketData.cpiChange)}% (עודכן ב-${marketData.cpiUpdatedAt})`
-      : "טוען מדד..."}
-  </span>
-
-  <span className="mx-3 text-cyan-300/30">•</span>
-
-  <CircleDollarSign className="mx-2 inline h-4 w-4 text-emerald-300" />
-  <span className="text-emerald-300">
-    שער הדולר עומד על {marketData ? `${marketData.usdIls.toFixed(3)} ₪` : "טוען..."}
-  </span>
-</div>
-</div>
+             <MarketTicker marketData={marketData} />
               <motion.div
                 whileHover={{ y: -2 }}
                 className="glass-card gradient-border floating-card rounded-2xl p-4"
