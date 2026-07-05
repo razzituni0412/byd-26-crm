@@ -3065,7 +3065,7 @@ function MonthlyTargetCard({
 
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
-          <p className="text-[11px] text-cyan-200/70">ביצוע בפועל / יעד</p>
+          <p className="text-[11px] text-cyan-200/70">יעד / ביצוע בפועל</p>
           <p className={`text-2xl font-black sm:text-3xl ${toneText} drop-shadow-[0_0_16px_rgba(34,211,238,0.55)]`}>
             <span dir="ltr" className="tabular-nums">
               {actual} / {target}
