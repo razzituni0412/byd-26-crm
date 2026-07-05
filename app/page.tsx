@@ -25,7 +25,6 @@ import {
   Trophy,
   TrendingUp,
   Users,
-  Camera,
   Share2,
   X,
   SunMedium,
@@ -2510,16 +2509,6 @@ function FinancingOfferModal({
     [captureOfferImage],
   );
 
-  const handleSaveImage = useCallback(async () => {
-    if (!cardRef.current || isExporting) return;
-    setIsExporting(true);
-    try {
-      await downloadOfferImage();
-    } finally {
-      setIsExporting(false);
-    }
-  }, [downloadOfferImage, isExporting]);
-
   const handleShare = useCallback(async () => {
     if (!cardRef.current || isExporting) return;
     setIsExporting(true);
@@ -2565,7 +2554,7 @@ function FinancingOfferModal({
   }, [onReturnHome]);
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-hidden">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-2 sm:p-4">
       <motion.button
         type="button"
         aria-label="סגירה"
@@ -2573,146 +2562,135 @@ function FinancingOfferModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-[#03060d]/85 backdrop-blur-md"
+        className="absolute inset-0 bg-black/95 backdrop-blur-xl"
       />
-      <div className="relative z-10 flex h-[100dvh] max-h-[100dvh] flex-col justify-end p-3 sm:justify-center sm:p-4">
-        <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 12 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 8 }}
-          className="mx-auto flex w-full max-w-lg flex-col gap-2 overflow-hidden sm:max-h-[calc(100dvh-2rem)]"
-        >
-          <div className="glass-card gradient-border flex min-h-0 flex-col overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-b from-slate-900/98 via-[#060d18]/98 to-[#03060d] shadow-[0_0_48px_rgba(34,211,238,0.2)]">
-            <div ref={cardRef} id="financing-offer-card" className="min-h-0 overflow-y-auto">
-              <div className="border-b border-cyan-400/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10 px-4 pb-3 pt-4 sm:px-5">
-            <img
-              src="/logo.png"
-              alt="BYD Haifa"
-              className="mx-auto h-auto w-full max-w-[160px] drop-shadow-[0_0_16px_rgba(34,211,238,0.22)] sm:max-w-[180px]"
-            />
-            <h3 className="mt-2.5 text-center text-lg font-bold tracking-wide text-cyan-50">
-              הצעת מימון
-            </h3>
-          </div>
-
-          <div className="space-y-3 px-4 py-4 sm:px-5">
-            <div className="rounded-xl border border-cyan-400/20 bg-slate-900/45 px-3 py-2.5">
-              <label className="mb-1.5 flex items-center gap-2 text-[11px] font-medium text-cyan-300/75">
-                <Users className="h-3.5 w-3.5" />
-                שם לקוח
-              </label>
-              <input
-                type="text"
-                value={customerName}
-                onChange={(e) => onCustomerNameChange(e.target.value)}
-                placeholder="הזן שם לקוח"
-                className="input-neon w-full text-sm font-semibold text-cyan-50"
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 12 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.96, y: 8 }}
+        className="relative z-10 flex w-full max-w-lg max-h-[calc(100dvh-0.75rem)] flex-col gap-1.5 overflow-hidden sm:max-h-[calc(100dvh-2rem)]"
+      >
+        <div className="glass-card gradient-border flex min-h-0 flex-1 flex-col overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-b from-slate-900 via-[#060d18] to-[#03060d] shadow-[0_0_48px_rgba(34,211,238,0.2)]">
+          <div ref={cardRef} id="financing-offer-card" className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
+            <div className="border-b border-cyan-400/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10 px-3 pb-2 pt-3 sm:px-4">
+              <img
+                src="/logo.png"
+                alt="BYD Haifa"
+                className="mx-auto h-auto w-full max-w-[128px] drop-shadow-[0_0_16px_rgba(34,211,238,0.22)] sm:max-w-[150px]"
               />
+              <h3 className="mt-1 text-center text-base font-bold tracking-wide text-cyan-50 sm:text-lg">
+                הצעת מימון
+              </h3>
             </div>
 
-            <div className="rounded-xl border border-cyan-400/20 bg-slate-900/45 px-3 py-2.5">
-              <label className="mb-1.5 flex items-center gap-2 text-[11px] font-medium text-cyan-300/75">
-                <CarFront className="h-3.5 w-3.5" />
-                דגם רכב
-              </label>
-              <select
-                value={carModel}
-                onChange={(e) => onCarModelChange(e.target.value)}
-                className="input-neon w-full text-sm font-semibold text-cyan-50"
-              >
-                {BYD_MODELS.map((entry) => (
-                  <option key={entry.model} value={entry.model} className="bg-slate-900">
-                    {entry.model}
-                  </option>
-                ))}
-              </select>
+            <div className="space-y-2 px-3 py-2.5 sm:px-4 sm:py-3">
+              <div className="rounded-xl border border-cyan-400/20 bg-slate-900/45 px-2.5 py-2">
+                <label className="mb-1 flex items-center gap-1.5 text-[10px] font-medium text-cyan-300/75 sm:text-[11px]">
+                  <Users className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  שם לקוח
+                </label>
+                <input
+                  type="text"
+                  value={customerName}
+                  onChange={(e) => onCustomerNameChange(e.target.value)}
+                  placeholder="הזן שם לקוח"
+                  className="input-neon w-full text-sm font-semibold text-cyan-50"
+                />
+              </div>
+
+              <div className="rounded-xl border border-cyan-400/20 bg-slate-900/45 px-2.5 py-2">
+                <label className="mb-1 flex items-center gap-1.5 text-[10px] font-medium text-cyan-300/75 sm:text-[11px]">
+                  <CarFront className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                  דגם רכב
+                </label>
+                <select
+                  value={carModel}
+                  onChange={(e) => onCarModelChange(e.target.value)}
+                  className="input-neon w-full text-sm font-semibold text-cyan-50"
+                >
+                  {BYD_MODELS.map((entry) => (
+                    <option key={entry.model} value={entry.model} className="bg-slate-900">
+                      {entry.model}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <OfferDetailRow
+                  compact
+                  icon={<CircleDollarSign className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                  label="סכום מימון"
+                  value={formatProposalShekels(financingAmount)}
+                  valueDir="ltr"
+                />
+                <OfferDetailRow
+                  compact
+                  icon={<CalendarDays className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                  label="תקופה"
+                  value={formatProposalTerm(termMonths)}
+                  valueDir="ltr"
+                />
+                <OfferDetailRow
+                  compact
+                  icon={<Percent className="h-3.5 w-3.5 sm:h-4 sm:w-4" />}
+                  label="ריבית"
+                  value={rateLabel}
+                  valueDir="ltr"
+                />
+              </div>
+
+              <div className="rounded-xl border border-cyan-300/35 bg-gradient-to-br from-cyan-500/15 via-slate-900/60 to-blue-600/10 px-3 py-3 text-center shadow-[inset_0_0_28px_rgba(34,211,238,0.08)] sm:py-3.5">
+                <p className="mb-1 text-[10px] font-semibold tracking-[0.14em] text-cyan-300/75 sm:text-[11px]">
+                  החזר חודשי
+                </p>
+                <p
+                  className="text-3xl font-black leading-none tracking-tight text-cyan-50 drop-shadow-[0_0_28px_rgba(34,211,238,0.5)] sm:text-4xl"
+                  dir="ltr"
+                >
+                  {formatProposalShekels(monthlyPayment, 2)}
+                </p>
+              </div>
             </div>
 
-            <div className="space-y-2">
-              <OfferDetailRow
-                icon={<CircleDollarSign className="h-4 w-4" />}
-                label="סכום מימון"
-                value={formatProposalShekels(financingAmount)}
-                valueDir="ltr"
-              />
-              <OfferDetailRow
-                icon={<CalendarDays className="h-4 w-4" />}
-                label="תקופה"
-                value={formatProposalTerm(termMonths)}
-                valueDir="ltr"
-              />
-              <OfferDetailRow
-                icon={<Percent className="h-4 w-4" />}
-                label="ריבית"
-                value={rateLabel}
-                valueDir="ltr"
-              />
-            </div>
-
-            <div className="rounded-2xl border border-cyan-300/35 bg-gradient-to-br from-cyan-500/15 via-slate-900/60 to-blue-600/10 px-3 py-5 text-center shadow-[inset_0_0_28px_rgba(34,211,238,0.08)]">
-              <p className="mb-1.5 text-[11px] font-semibold tracking-[0.16em] text-cyan-300/75">
-                החזר חודשי
+            <div className="border-t border-cyan-400/15 bg-slate-950/60 px-3 py-2 sm:px-4">
+              <p className="text-center text-[9px] leading-snug text-cyan-200/50 sm:text-[10px]">
+                המימון מוצע על ידי שלמה מימון בע"מ, ח.פ. 515455137 מספר רישיון: 56249, חברה בעלת רישיון מורחב למתן אשראי מאת רשות שוק ההון, ביטוח וחיסכון, בכפוף לשיקול דעתה ולתנאיה. אי-עמידה בפירעון ההלוואה או בהחזר האשראי עלולה לגרור חיוב בריבית פיגורים והליכי הוצאה לפועל.
               </p>
-              <p
-                className="text-4xl font-black leading-none tracking-tight text-cyan-50 drop-shadow-[0_0_28px_rgba(34,211,238,0.5)] sm:text-[2.75rem]"
-                dir="ltr"
-              >
-                {formatProposalShekels(monthlyPayment, 2)}
-              </p>
             </div>
           </div>
 
-          <div className="border-t border-cyan-400/15 bg-slate-950/60 px-4 py-3 sm:px-5">
-            <p className="text-center text-[10px] leading-relaxed text-cyan-200/50 sm:text-[11px]">
-            המימון מוצע על ידי שלמה מימון בע"מ, ח.פ. 515455137 מספר רישיון: 56249, חברה בעלת רישיון מורחב למתן אשראי מאת רשות שוק ההון, ביטוח וחיסכון, בכפוף לשיקול דעתה ולתנאיה. אי-עמידה בפירעון ההלוואה או בהחזר האשראי עלולה לגרור חיוב בריבית פיגורים והליכי הוצאה לפועל.
-
-            </p>
-          </div>
-            </div>
-
-            <div className="grid shrink-0 grid-cols-1 gap-2.5 border-t border-cyan-400/15 bg-slate-900/40 p-4 sm:grid-cols-2 sm:p-5">
-            <motion.button
-              type="button"
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.98 }}
-              disabled={isExporting}
-              onClick={handleSaveImage}
-              className="flex items-center justify-center gap-2 rounded-xl border border-cyan-300/40 bg-cyan-500/15 px-4 py-2.5 text-sm font-semibold text-cyan-50 shadow-[0_0_18px_rgba(34,211,238,0.2)] disabled:opacity-50"
-            >
-              <Camera className="h-4 w-4 shrink-0" />
-              📸 שמור כתמונה
-            </motion.button>
+          <div className="shrink-0 border-t border-cyan-400/15 bg-slate-900/40 p-2.5 sm:p-3">
             <motion.button
               type="button"
               whileHover={{ y: -1 }}
               whileTap={{ scale: 0.98 }}
               disabled={isExporting}
               onClick={handleShare}
-              className="flex items-center justify-center gap-2 rounded-xl border border-blue-300/40 bg-blue-500/15 px-4 py-2.5 text-sm font-semibold text-blue-50 shadow-[0_0_18px_rgba(59,130,246,0.22)] disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-blue-300/40 bg-blue-500/15 px-4 py-2.5 text-sm font-semibold text-blue-50 shadow-[0_0_18px_rgba(59,130,246,0.22)] disabled:opacity-50"
             >
               <Share2 className="h-4 w-4 shrink-0" />
               📤 שתף
             </motion.button>
           </div>
-          </div>
+        </div>
 
-          {shareSuccess ? (
-            <p className="shrink-0 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-center text-sm font-semibold text-emerald-200">
-              ההצעה נשלחה בהצלחה
-            </p>
-          ) : null}
+        {shareSuccess ? (
+          <p className="shrink-0 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-center text-xs font-semibold text-emerald-200 sm:text-sm">
+            ההצעה נשלחה בהצלחה
+          </p>
+        ) : null}
 
-          <motion.button
-            type="button"
-            whileHover={{ y: -1 }}
-            whileTap={{ scale: 0.98 }}
-            onClick={handleReturnHome}
-            className="flex min-h-[52px] shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-300/45 bg-gradient-to-r from-cyan-600/30 via-blue-600/30 to-cyan-500/30 px-4 py-3.5 text-base font-bold text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.35)]"
-          >
-            חזרה למסך הראשי
-          </motion.button>
-        </motion.div>
-      </div>
+        <motion.button
+          type="button"
+          whileHover={{ y: -1 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={handleReturnHome}
+          className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-300/45 bg-gradient-to-r from-cyan-600/30 via-blue-600/30 to-cyan-500/30 px-4 py-2.5 text-sm font-bold text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.35)] sm:min-h-[48px] sm:text-base"
+        >
+          חזרה למסך הראשי
+        </motion.button>
+      </motion.div>
     </div>
   );
 }
@@ -2722,19 +2700,28 @@ function OfferDetailRow({
   label,
   value,
   valueDir = "rtl",
+  compact = false,
 }: {
   icon: React.ReactNode;
   label: string;
   value: string;
   valueDir?: "ltr" | "rtl";
+  compact?: boolean;
 }) {
   return (
-    <div className="flex items-center justify-between gap-4 rounded-xl border border-cyan-400/15 bg-slate-900/45 px-4 py-3">
-      <span className="flex items-center gap-2 text-sm text-cyan-200/75">
+    <div
+      className={`flex items-center justify-between gap-3 rounded-xl border border-cyan-400/15 bg-slate-900/45 ${
+        compact ? "px-3 py-2" : "px-4 py-3"
+      }`}
+    >
+      <span className={`flex items-center gap-1.5 text-cyan-200/75 ${compact ? "text-xs sm:text-sm" : "text-sm"}`}>
         <span className="text-cyan-300/70">{icon}</span>
         {label}
       </span>
-      <span className="text-sm font-semibold text-cyan-50 sm:text-base" dir={valueDir}>
+      <span
+        className={`font-semibold text-cyan-50 ${compact ? "text-xs sm:text-sm" : "text-sm sm:text-base"}`}
+        dir={valueDir}
+      >
         {value}
       </span>
     </div>
