@@ -1,6 +1,7 @@
 "use client";
 import { supabase } from "@/app/supabase";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import dynamic from "next/dynamic";
 import { toPng } from "html-to-image";
 import { AnimatePresence, motion } from "framer-motion";
@@ -2159,11 +2160,7 @@ console.log("Delete error:", error);
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
             >
-              <AmortizationScheduleTab
-                onReturnHome={() =>
-                  setActivePage(showPersonalDashboard ? "dashboard" : "amortization")
-                }
-              />
+              <AmortizationScheduleTab />
             </motion.section>
           )}
         </AnimatePresence>
@@ -2186,7 +2183,7 @@ console.log("Delete error:", error);
   );
 }
 
-function AmortizationScheduleTab({ onReturnHome }: { onReturnHome: () => void }) {
+function AmortizationScheduleTab() {
   const [loanAmount, setLoanAmount] = useState("150000");
   const [termMonths, setTermMonths] = useState("60");
   const [annualRate, setAnnualRate] = useState("6.5");
@@ -2230,7 +2227,13 @@ function AmortizationScheduleTab({ onReturnHome }: { onReturnHome: () => void })
 
   const formatMoney = (value: number) => loanCurrency.format(value);
 
+  const closeOfferModal = useCallback(() => {
+    setIsOfferModalOpen(false);
+  }, []);
+
   return (
+    <>
+      {!isOfferModalOpen ? (
     <div className="space-y-4">
       <motion.div className="glass-card gradient-border rounded-2xl p-4 sm:p-5">
         <h2 className="mb-5 flex items-center gap-2 text-base font-semibold text-cyan-100 sm:text-lg">
@@ -2311,26 +2314,6 @@ function AmortizationScheduleTab({ onReturnHome }: { onReturnHome: () => void })
           📤 הצעת מימון
         </motion.button>
       </motion.div>
-
-      <AnimatePresence>
-        {isOfferModalOpen && result && (
-          <FinancingOfferModal
-            customerName={offerCustomerName}
-            onCustomerNameChange={setOfferCustomerName}
-            carModel={offerCarModel}
-            onCarModelChange={setOfferCarModel}
-            financingAmount={Number(loanAmount)}
-            termMonths={Math.round(Number(termMonths))}
-            annualRate={Number(annualRate)}
-            monthlyPayment={result.monthlyPayment}
-            onClose={() => setIsOfferModalOpen(false)}
-            onReturnHome={() => {
-              setIsOfferModalOpen(false);
-              onReturnHome();
-            }}
-          />
-        )}
-      </AnimatePresence>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         <AmortizationOutputCard
@@ -2444,6 +2427,25 @@ function AmortizationScheduleTab({ onReturnHome }: { onReturnHome: () => void })
         )}
       </motion.div>
     </div>
+      ) : null}
+
+      <AnimatePresence>
+        {isOfferModalOpen && result ? (
+          <FinancingOfferModal
+            customerName={offerCustomerName}
+            onCustomerNameChange={setOfferCustomerName}
+            carModel={offerCarModel}
+            onCarModelChange={setOfferCarModel}
+            financingAmount={Number(loanAmount)}
+            termMonths={Math.round(Number(termMonths))}
+            annualRate={Number(annualRate)}
+            monthlyPayment={result.monthlyPayment}
+            onClose={closeOfferModal}
+            onReturnToSchedule={closeOfferModal}
+          />
+        ) : null}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -2457,7 +2459,7 @@ function FinancingOfferModal({
   annualRate,
   monthlyPayment,
   onClose,
-  onReturnHome,
+  onReturnToSchedule,
 }: {
   customerName: string;
   onCustomerNameChange: (name: string) => void;
@@ -2468,11 +2470,21 @@ function FinancingOfferModal({
   annualRate: number;
   monthlyPayment: number;
   onClose: () => void;
-  onReturnHome: () => void;
+  onReturnToSchedule: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, []);
 
   const rateLabel = Number.isInteger(annualRate)
     ? `${annualRate}%`
@@ -2549,12 +2561,22 @@ function FinancingOfferModal({
     }
   }, [captureOfferImage, downloadOfferImage, isExporting, shareText]);
 
-  const handleReturnHome = useCallback(() => {
-    onReturnHome();
-  }, [onReturnHome]);
+  const handleReturnToSchedule = useCallback(() => {
+    onReturnToSchedule();
+  }, [onReturnToSchedule]);
 
-  return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden p-2 sm:p-4">
+  if (!isMounted) return null;
+
+  return createPortal(
+    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden p-2 sm:p-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-[#03060d]"
+      />
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#03060d] via-[#060d18] to-[#03060d]"
+      />
       <motion.button
         type="button"
         aria-label="סגירה"
@@ -2562,7 +2584,7 @@ function FinancingOfferModal({
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
         onClick={onClose}
-        className="absolute inset-0 bg-black/95 backdrop-blur-xl"
+        className="absolute inset-0 bg-[#03060d]"
       />
       <motion.div
         initial={{ opacity: 0, scale: 0.96, y: 12 }}
@@ -2685,13 +2707,14 @@ function FinancingOfferModal({
           type="button"
           whileHover={{ y: -1 }}
           whileTap={{ scale: 0.98 }}
-          onClick={handleReturnHome}
+          onClick={handleReturnToSchedule}
           className="flex min-h-[44px] shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-300/45 bg-gradient-to-r from-cyan-600/30 via-blue-600/30 to-cyan-500/30 px-4 py-2.5 text-sm font-bold text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.35)] sm:min-h-[48px] sm:text-base"
         >
-          חזרה למסך הראשי
+          חזרה ללוח סילוקין
         </motion.button>
       </motion.div>
-    </div>
+    </div>,
+    document.body,
   );
 }
 
