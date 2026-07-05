@@ -15,6 +15,20 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "CRM מימון רכבים",
   description: "דשבורד CRM עתידני לסוכני מימון רכבים",
+  icons: {
+    icon: [
+      { url: "/icons/app-icon.png", sizes: "1024x1024", type: "image/png" },
+      { url: "/icons/app-icon.png", sizes: "512x512", type: "image/png" },
+      { url: "/icons/app-icon.png", sizes: "192x192", type: "image/png" },
+    ],
+    apple: [{ url: "/icons/app-icon.png", sizes: "180x180", type: "image/png" }],
+    shortcut: ["/icons/app-icon.png"],
+  },
+  appleWebApp: {
+    capable: true,
+    title: "CRM מימון רכבים",
+    statusBarStyle: "black-translucent",
+  },
 };
 
 export const viewport = {
