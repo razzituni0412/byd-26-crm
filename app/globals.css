@@ -416,7 +416,7 @@ svg.premium-greeting-text {
   overflow: visible;
   direction: ltr;
   gap: 0;
-  animation: marketTickerRight 42s linear infinite;
+  animation: marketTickerRight 55s linear infinite;
   will-change: transform;
 }
 
