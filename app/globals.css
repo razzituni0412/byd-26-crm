@@ -394,6 +394,50 @@ svg.premium-greeting-text {
   }
 }
 
+.market-ticker-viewport {
+  width: 100%;
+  overflow: hidden;
+  overflow-x: hidden;
+  overflow-y: hidden;
+  direction: ltr;
+  line-height: 1.5rem;
+  height: 1.5rem;
+  max-height: 1.5rem;
+  white-space: nowrap;
+}
+
+.market-ticker-track {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  width: max-content;
+  white-space: nowrap;
+  overflow: visible;
+  direction: ltr;
+  gap: 0;
+  animation: marketTickerRight 42s linear infinite;
+  will-change: transform;
+}
+
+.market-ticker-track > * {
+  flex: 0 0 auto;
+  width: auto;
+  max-width: none;
+  white-space: nowrap;
+  display: inline-flex;
+  align-items: center;
+}
+
+@keyframes marketTickerRight {
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+
 @media (max-width: 430px) {
   .glass-card {
     backdrop-filter: blur(14px);

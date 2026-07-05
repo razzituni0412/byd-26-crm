@@ -2,7 +2,6 @@
 import { supabase } from "@/app/supabase";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import dynamic from "next/dynamic";
 import { toPng } from "html-to-image";
 import { AnimatePresence, motion } from "framer-motion";
 import {
@@ -36,10 +35,6 @@ import {
   BarChart3
 
 } from "lucide-react";
-import { NEXT_META_SUFFIX } from "next/dist/lib/constants";
-import { getMaxListeners } from "events";
-
-const Marquee = dynamic(() => import("react-fast-marquee"), { ssr: false });
 
 type DealStatus =  "בטיפול" | "מאושר" | "נדחה" | "חוזה חתום";
 type FinancingType = "רגיל" | "מסובסד";
@@ -869,17 +864,13 @@ function MarketTickerContent({ marketData }: { marketData: any }) {
 function MarketTicker({ marketData }: { marketData: any }) {
   return (
     <div className="glass-card gradient-border overflow-hidden rounded-2xl px-4 py-3">
-      <Marquee
-        direction="right"
-        speed={45}
-        delay={0}
-        pauseOnHover={false}
-        pauseOnClick={false}
-        autoFill
-        gradient={false}
-      >
-        <MarketTickerContent marketData={marketData} />
-      </Marquee>
+      <div className="market-ticker-viewport">
+        <div className="market-ticker-track">
+          {Array.from({ length: 8 }).map((_, index) => (
+            <MarketTickerContent key={index} marketData={marketData} />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }
