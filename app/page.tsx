@@ -903,6 +903,25 @@ function getUserHeaderLogo(email?: string) {
   return email ? logos[email.toLowerCase()] ?? "/header-logo.png" : "/header-logo.png";
 }
 
+let newDealSuccessAudio: HTMLAudioElement | null = null;
+
+function playNewDealSuccessSound() {
+  if (typeof window === "undefined") return;
+
+  try {
+    if (!newDealSuccessAudio) {
+      newDealSuccessAudio = new Audio("/sounds/success.mp3");
+      newDealSuccessAudio.preload = "auto";
+    }
+
+    newDealSuccessAudio.volume = 0.4;
+    newDealSuccessAudio.currentTime = 0;
+    void newDealSuccessAudio.play().catch(() => {});
+  } catch {
+    // ignore browser autoplay / audio errors
+  }
+}
+
 function usePrefersReducedMotion() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
@@ -1332,7 +1351,7 @@ if (!user) {
         ),
       );
     } else {
-      const { data: insertedDeal } = await supabase
+      const { data: insertedDeal, error: insertError } = await supabase
   .from("deals")
   .insert({
     date: dealDate,
@@ -1349,8 +1368,13 @@ if (!user) {
   })
   .select("id")
   .single();
+
+      if (insertError || !insertedDeal) {
+        return;
+      }
+
       const newDeal: Deal = {
-        id: insertedDeal!.id,
+        id: insertedDeal.id,
         ...formData,
         date: dealDate,
         agentName,
@@ -1360,6 +1384,7 @@ if (!user) {
         loanTermMonths: normalizeLoanTermMonths(formData.loanTermMonths),
       };
       setDeals((prev) => [newDeal, ...prev]);
+      playNewDealSuccessSound();
     }
 
     resetForm();
