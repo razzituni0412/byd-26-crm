@@ -903,7 +903,66 @@ function getUserHeaderLogo(email?: string) {
   return email ? logos[email.toLowerCase()] ?? "/header-logo.png" : "/header-logo.png";
 }
 
+function usePrefersReducedMotion() {
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+    updatePreference();
+    mediaQuery.addEventListener("change", updatePreference);
+    return () => mediaQuery.removeEventListener("change", updatePreference);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function getDashboardEntranceProps(prefersReducedMotion: boolean, index = 0) {
+  if (prefersReducedMotion) {
+    return { initial: false as const, animate: { opacity: 1, y: 0 } };
+  }
+
+  return {
+    initial: { opacity: 0, y: 8 },
+    animate: { opacity: 1, y: 0 },
+    transition: { duration: 0.42, delay: index * 0.07, ease: [0.22, 1, 0.36, 1] as const },
+  };
+}
+
+function getDashboardInteractionProps(prefersReducedMotion: boolean) {
+  if (prefersReducedMotion) return {};
+
+  return {
+    whileHover: { y: -2 },
+    whileTap: { scale: 0.98 },
+    transition: { type: "tween" as const, duration: 0.18 },
+  };
+}
+
+function DashboardReveal({
+  index,
+  className,
+  children,
+}: {
+  index: number;
+  className?: string;
+  children: React.ReactNode;
+}) {
+  const prefersReducedMotion = usePrefersReducedMotion();
+
+  return (
+    <motion.div
+      className={className}
+      {...getDashboardEntranceProps(prefersReducedMotion, index)}
+      {...getDashboardInteractionProps(prefersReducedMotion)}
+    >
+      {children}
+    </motion.div>
+  );
+}
+
 export default function Home() {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const [activePage, setActivePage] = useState<PageTab>("dashboard");
   const [currentUser, setCurrentUser] = useState<any>(null);
   const [userRole, setUserRole] = useState<UserRole>("agent");
@@ -1558,11 +1617,10 @@ console.log("Delete error:", error);
             <motion.button
               key={item.key}
               onClick={() => setActivePage(item.key)}
-              whileHover={{ y: -2, scale: 1.01 }}
-              whileTap={{ scale: 0.99 }}
+              {...getDashboardInteractionProps(prefersReducedMotion)}
               className={`rounded-xl px-2 py-2 text-xs font-semibold transition sm:text-sm ${
                 activePage === item.key
-                  ? "bg-cyan-400/20 text-cyan-100 shadow-[0_0_24px_rgba(34,211,238,0.45)]"
+                  ? "nav-tab-active-glow bg-cyan-400/20 text-cyan-100"
                   : "text-cyan-100/70 hover:bg-cyan-300/10"
               }`}
             >
@@ -1578,14 +1636,17 @@ console.log("Delete error:", error);
           {activePage === "dashboard" && showPersonalDashboard && (
             <motion.section
               key="dashboard"
-              initial={{ opacity: 0, y: 14 }}
+              initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -8 }}
+              exit={prefersReducedMotion ? undefined : { opacity: 0, y: -8 }}
+              transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.45, ease: [0.22, 1, 0.36, 1] }}
               className="space-y-4"
             >
-             <MarketTicker marketData={marketData} />
-              <motion.div
-                whileHover={{ y: -2 }}
+              <DashboardReveal index={0}>
+                <MarketTicker marketData={marketData} />
+              </DashboardReveal>
+              <DashboardReveal
+                index={1}
                 className="glass-card gradient-border floating-card rounded-2xl p-4"
               >
                 <label className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -1605,10 +1666,11 @@ console.log("Delete error:", error);
                     ))}
                   </select>
                 </label>
-              </motion.div>
+              </DashboardReveal>
 
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <MonthlyTargetCard
+                  entranceIndex={2}
                   title="יעד עסקאות חודשי"
                   subtitle={`חוזה חתום | ${dashboardPeriodLabel}`}
                   icon={<Target className="h-5 w-5" />}
@@ -1626,6 +1688,7 @@ console.log("Delete error:", error);
                   tone="cyan"
                 />
                 <MonthlyTargetCard
+                  entranceIndex={3}
                   title="יעד רווחיות חודשי"
                   subtitle={`חוזה חתום + ריבית 6% ומעלה (רגיל) | ${dashboardPeriodLabel}`}
                   icon={<TrendingUp className="h-5 w-5" />}
@@ -1646,6 +1709,7 @@ console.log("Delete error:", error);
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <StatCard
+                  entranceIndex={4}
                   title="סה״כ עסקאות"
                   value={totalDeals}
                   suffix=""
@@ -1653,6 +1717,7 @@ console.log("Delete error:", error);
                   icon={<Users className="h-4 w-4" />}
                 />
                 <StatCard
+                  entranceIndex={5}
                   title="סה״כ מימון"
                   value={totalFinancing}
                   suffix=""
@@ -1661,6 +1726,7 @@ console.log("Delete error:", error);
                   icon={<CircleDollarSign className="h-4 w-4" />}
                 />
                 <StatCard
+                  entranceIndex={6}
                   title="ריבית ממוצעת"
                   value={Number(avgInterest.toFixed(2))}
                   suffix="%"
@@ -1669,6 +1735,7 @@ console.log("Delete error:", error);
                   icon={<Percent className="h-4 w-4" />}
                 />
                 <StatCard
+                  entranceIndex={7}
                   title="עסקאות מסובסדות"
                   value={subsidizedDealsCount}
                   suffix=""
@@ -1677,8 +1744,8 @@ console.log("Delete error:", error);
                 />
               </div>
 
-              <motion.div
-                whileHover={{ y: -3 }}
+              <DashboardReveal
+                index={8}
                 className="glass-card gradient-border floating-card rounded-2xl p-4"
               >
                 <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-cyan-100">
@@ -1697,9 +1764,8 @@ console.log("Delete error:", error);
                       return (
                       <motion.div
                         key={agent.agent}
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        whileHover={{ y: -2, scale: 1.005 }}
+                        {...getDashboardEntranceProps(prefersReducedMotion, 9 + index)}
+                        {...getDashboardInteractionProps(prefersReducedMotion)}
                         className="rounded-2xl border border-cyan-400/25 bg-slate-900/55 p-4 shadow-[0_0_24px_rgba(34,211,238,0.08)]"
                       >
                         <div className="mb-3 flex items-center justify-between gap-4">
@@ -1715,15 +1781,16 @@ console.log("Delete error:", error);
                         </div>
                         <motion.div
                           className="h-2.5 overflow-hidden rounded-full bg-cyan-950/80"
-                          initial={{ width: 0 }}
+                          initial={{ width: prefersReducedMotion ? "100%" : 0 }}
                           animate={{ width: "100%" }}
+                          transition={{ duration: prefersReducedMotion ? 0 : 0.45 }}
                         >
                           <motion.div
-                            initial={{ width: 0 }}
+                            initial={{ width: prefersReducedMotion ? `${Math.max((agent.count / maxDealsByAgent) * 100, 8)}%` : 0 }}
                             animate={{
                               width: `${Math.max((agent.count / maxDealsByAgent) * 100, 8)}%`,
                             }}
-                            transition={{ duration: 0.8 }}
+                            transition={{ duration: prefersReducedMotion ? 0 : 0.8, ease: "easeOut" }}
                             className={`h-full rounded-full bg-gradient-to-r ${colorTheme} shadow-[0_0_14px_rgba(34,211,238,1)]`}
                           />
                         </motion.div>
@@ -1739,10 +1806,10 @@ console.log("Delete error:", error);
                     })
                   )}
                 </div>
-              </motion.div>
+              </DashboardReveal>
 
-              <motion.div
-                whileHover={{ y: -3 }}
+              <DashboardReveal
+                index={10}
                 className="glass-card gradient-border floating-card rounded-2xl p-4"
               >
                 <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-cyan-100">
@@ -1751,8 +1818,9 @@ console.log("Delete error:", error);
                 </h2>
                 {topPerformer ? (
                   <motion.div
-                    initial={{ scale: 0.98, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
+                    initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={prefersReducedMotion ? { duration: 0 } : { duration: 0.4, delay: 0.08 }}
                     className="rounded-xl border border-cyan-300/35 bg-gradient-to-r from-cyan-600/20 via-blue-600/20 to-cyan-500/20 p-4 shadow-[0_0_25px_rgba(34,211,238,0.22)]"
                   >
                     <p className="text-lg font-bold text-cyan-50">{topPerformer.agent}</p>
@@ -1764,7 +1832,7 @@ console.log("Delete error:", error);
                 ) : (
                   <p className="text-sm text-cyan-200/70">טרם נבחר סוכן מוביל.</p>
                 )}
-              </motion.div>
+              </DashboardReveal>
 
             
             </motion.section>
@@ -2949,6 +3017,7 @@ function MonthlyTargetCard({
   actual,
   onTargetChange,
   tone = "cyan",
+  entranceIndex = 0,
 }: {
   title: string;
   subtitle: string;
@@ -2957,7 +3026,9 @@ function MonthlyTargetCard({
   actual: number;
   onTargetChange: (value: number) => void;
   tone?: "cyan" | "green";
+  entranceIndex?: number;
 }) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const toneText = tone === "green" ? "text-emerald-300" : "text-cyan-300";
   const progressPercent = target > 0 ? Math.round((actual / target) * 100) : 0;
   const progressWidth = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
@@ -2968,7 +3039,8 @@ function MonthlyTargetCard({
 
   return (
     <motion.div
-      whileHover={{ y: -3, scale: 1.005 }}
+      {...getDashboardEntranceProps(prefersReducedMotion, entranceIndex)}
+      {...getDashboardInteractionProps(prefersReducedMotion)}
       className="glass-card gradient-border floating-card rounded-2xl p-4 sm:p-5"
     >
       <div className="mb-4 flex items-start justify-between gap-3">
@@ -3012,9 +3084,9 @@ function MonthlyTargetCard({
 
       <div className="h-3 overflow-hidden rounded-full border border-cyan-400/25 bg-cyan-950/80 shadow-[inset_0_0_12px_rgba(34,211,238,0.12)]">
         <motion.div
-          initial={{ width: 0 }}
+          initial={{ width: prefersReducedMotion ? `${progressWidth}%` : 0 }}
           animate={{ width: `${progressWidth}%` }}
-          transition={{ duration: 0.7, ease: "easeOut" }}
+          transition={{ duration: prefersReducedMotion ? 0 : 0.7, ease: "easeOut" }}
           className={`h-full rounded-full bg-gradient-to-r ${gradient} shadow-[0_0_18px_rgba(34,211,238,0.65)]`}
         />
       </div>
@@ -3060,6 +3132,7 @@ function StatCard({
   decimals = 0,
   tone = "cyan",
   formatter,
+  entranceIndex = 0,
 }: {
   title: string;
   value: number;
@@ -3068,7 +3141,9 @@ function StatCard({
   decimals?: number;
   tone?: "blue" | "cyan" | "green";
   formatter?: (value: number) => string;
+  entranceIndex?: number;
 }) {
+  const prefersReducedMotion = usePrefersReducedMotion();
   const toneText = {
     blue: "text-blue-300",
     cyan: "text-cyan-300",
@@ -3077,8 +3152,9 @@ function StatCard({
 
   return (
     <motion.div
-      whileHover={{ y: -3, scale: 1.008 }}
-      className="glass-card gradient-border floating-card rounded-2xl p-4"
+      {...getDashboardEntranceProps(prefersReducedMotion, entranceIndex)}
+      {...getDashboardInteractionProps(prefersReducedMotion)}
+      className="glass-card gradient-border floating-card kpi-card-glow rounded-2xl p-4"
     >
       <div className="flex items-center justify-between gap-3">
         <div className="min-w-0">
@@ -3177,10 +3253,16 @@ function AnimatedCounter({
   decimals?: number;
   formatter?: (value: number) => string;
 }) {
-  const [displayValue, setDisplayValue] = useState(0);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const [displayValue, setDisplayValue] = useState(prefersReducedMotion ? value : 0);
 
   useEffect(() => {
-    const duration = 650;
+    if (prefersReducedMotion) {
+      setDisplayValue(value);
+      return;
+    }
+
+    const duration = 700;
     const start = 0;
     const diff = value;
     const startTime = performance.now();
@@ -3192,9 +3274,10 @@ function AnimatedCounter({
       if (progress < 1) requestAnimationFrame(tick);
     };
 
+    setDisplayValue(0);
     const raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [value]);
+  }, [value, prefersReducedMotion]);
 
   return (
     <>
