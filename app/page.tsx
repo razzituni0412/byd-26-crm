@@ -2561,12 +2561,11 @@ function FinancingOfferModal({
   }, [captureOfferImage, downloadOfferImage, isExporting, shareText]);
 
   const handleReturnHome = useCallback(() => {
-    onClose();
     onReturnHome();
-  }, [onClose, onReturnHome]);
+  }, [onReturnHome]);
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4">
+    <div className="fixed inset-0 z-[100] overflow-hidden">
       <motion.button
         type="button"
         aria-label="סגירה"
@@ -2576,19 +2575,16 @@ function FinancingOfferModal({
         onClick={onClose}
         className="absolute inset-0 bg-[#03060d]/85 backdrop-blur-md"
       />
-      <motion.div
-        initial={{ opacity: 0, scale: 0.96, y: 12 }}
-        animate={{ opacity: 1, scale: 1, y: 0 }}
-        exit={{ opacity: 0, scale: 0.96, y: 8 }}
-        className="relative z-10 flex w-full max-w-lg flex-col items-stretch gap-3"
-      >
-        <div className="glass-card gradient-border overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-b from-slate-900/98 via-[#060d18]/98 to-[#03060d] shadow-[0_0_48px_rgba(34,211,238,0.2)]">
-          <div
-            ref={cardRef}
-            id="financing-offer-card"
-            className="overflow-hidden"
-          >
-          <div className="border-b border-cyan-400/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10 px-4 pb-3 pt-4 sm:px-5">
+      <div className="relative z-10 flex h-[100dvh] max-h-[100dvh] flex-col justify-end p-3 sm:justify-center sm:p-4">
+        <motion.div
+          initial={{ opacity: 0, scale: 0.96, y: 12 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.96, y: 8 }}
+          className="mx-auto flex w-full max-w-lg flex-col gap-2 overflow-hidden sm:max-h-[calc(100dvh-2rem)]"
+        >
+          <div className="glass-card gradient-border flex min-h-0 flex-col overflow-hidden rounded-2xl border border-cyan-300/35 bg-gradient-to-b from-slate-900/98 via-[#060d18]/98 to-[#03060d] shadow-[0_0_48px_rgba(34,211,238,0.2)]">
+            <div ref={cardRef} id="financing-offer-card" className="min-h-0 overflow-y-auto">
+              <div className="border-b border-cyan-400/20 bg-gradient-to-r from-cyan-500/10 via-transparent to-blue-500/10 px-4 pb-3 pt-4 sm:px-5">
             <img
               src="/logo.png"
               alt="BYD Haifa"
@@ -2672,9 +2668,9 @@ function FinancingOfferModal({
 
             </p>
           </div>
-          </div>
+            </div>
 
-          <div className="grid grid-cols-1 gap-2.5 border-t border-cyan-400/15 bg-slate-900/40 p-4 sm:grid-cols-2 sm:p-5">
+            <div className="grid shrink-0 grid-cols-1 gap-2.5 border-t border-cyan-400/15 bg-slate-900/40 p-4 sm:grid-cols-2 sm:p-5">
             <motion.button
               type="button"
               whileHover={{ y: -1 }}
@@ -2698,36 +2694,25 @@ function FinancingOfferModal({
               📤 שתף
             </motion.button>
           </div>
-        </div>
+          </div>
 
-        {shareSuccess ? (
-          <div className="flex w-full flex-col gap-3">
-            <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-center text-sm font-semibold text-emerald-200">
+          {shareSuccess ? (
+            <p className="shrink-0 rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-center text-sm font-semibold text-emerald-200">
               ההצעה נשלחה בהצלחה
             </p>
-            <motion.button
-              type="button"
-              whileHover={{ y: -1 }}
-              whileTap={{ scale: 0.98 }}
-              onClick={handleReturnHome}
-              className="flex min-h-[52px] w-full items-center justify-center gap-2 rounded-xl border border-cyan-300/45 bg-gradient-to-r from-cyan-600/30 via-blue-600/30 to-cyan-500/30 px-4 py-3.5 text-base font-bold text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.35)]"
-            >
-              חזרה למסך הראשי
-            </motion.button>
-          </div>
-        ) : (
+          ) : null}
+
           <motion.button
             type="button"
             whileHover={{ y: -1 }}
             whileTap={{ scale: 0.98 }}
-            onClick={onClose}
-            className="flex min-h-[44px] w-full items-center justify-center gap-2 rounded-xl border border-cyan-400/25 bg-slate-900/80 px-4 py-2.5 text-sm font-semibold text-cyan-100"
+            onClick={handleReturnHome}
+            className="flex min-h-[52px] shrink-0 items-center justify-center gap-2 rounded-xl border border-cyan-300/45 bg-gradient-to-r from-cyan-600/30 via-blue-600/30 to-cyan-500/30 px-4 py-3.5 text-base font-bold text-cyan-50 shadow-[0_0_24px_rgba(34,211,238,0.35)]"
           >
-            <X className="h-4 w-4" />
-            סגור
+            חזרה למסך הראשי
           </motion.button>
-        )}
-      </motion.div>
+        </motion.div>
+      </div>
     </div>
   );
 }
