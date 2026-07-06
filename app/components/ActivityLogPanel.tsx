@@ -17,6 +17,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 const ACTIVITY_LOG_ICON_CLASS =
   "h-4 w-4 shrink-0 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]";
@@ -97,10 +98,21 @@ function formatLogTimestamp(value: string) {
   return `${relative} · ${exact}`;
 }
 
-export function ActivityLogPanel({ onClose }: { onClose: () => void }) {
+export function ActivityLogPanel({
+  open,
+  onClose,
+}: {
+  open: boolean;
+  onClose: () => void;
+}) {
+  const [isMounted, setIsMounted] = useState(false);
   const [logs, setLogs] = useState<ActivityLogDisplayEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
 
   const loadLogs = useCallback(async () => {
     setIsLoading(true);
@@ -140,11 +152,21 @@ export function ActivityLogPanel({ onClose }: { onClose: () => void }) {
   }, []);
 
   useEffect(() => {
+    if (!open) return;
     void loadLogs();
-  }, [loadLogs]);
+  }, [open, loadLogs]);
 
-  return (
-    <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+  if (!isMounted || !open) {
+    return null;
+  }
+
+  return createPortal(
+    <div
+      className="fixed inset-0 z-[120] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="יומן פעילות"
+    >
       <button
         type="button"
         aria-label="סגירה"
@@ -245,6 +267,7 @@ export function ActivityLogPanel({ onClose }: { onClose: () => void }) {
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }

@@ -2442,8 +2442,11 @@ console.log("Delete error:", error);
             }}
           />
         )}
-        {isActivityLogOpen && showActivityLog ? (
-          <ActivityLogPanel onClose={() => setIsActivityLogOpen(false)} />
+        {showActivityLog ? (
+          <ActivityLogPanel
+            open={isActivityLogOpen}
+            onClose={() => setIsActivityLogOpen(false)}
+          />
         ) : null}
       </div>
     </div>
