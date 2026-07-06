@@ -304,6 +304,32 @@ function getTargetsForPeriod(
   return targetsByPeriod[periodKey] ?? { ...DEFAULT_MONTHLY_TARGETS };
 }
 
+function patchTargetsForPeriod(
+  targetsByPeriod: MonthlyTargetsByPeriod,
+  periodKey: string,
+  patch: Partial<MonthlyTargets>,
+): MonthlyTargetsByPeriod {
+  const current = targetsByPeriod[periodKey] ?? { ...DEFAULT_MONTHLY_TARGETS };
+  return {
+    ...targetsByPeriod,
+    [periodKey]: { ...current, ...patch },
+  };
+}
+
+function persistTargetsByPeriodIfReady(
+  userId: string | undefined,
+  targetsByPeriod: MonthlyTargetsByPeriod,
+  storageReady: boolean,
+  loadedForUserId: string | null,
+  userRole: UserRole,
+  viewedUserId: string | null,
+) {
+  if (!storageReady || !userId) return;
+  if (loadedForUserId !== userId) return;
+  if (userRole === "admin" && !viewedUserId) return;
+  localStorage.setItem(getTargetsStorageKey(userId), JSON.stringify(targetsByPeriod));
+}
+
 async function loadDeals(userId: string): Promise<Deal[]> {
   const {
     data: { user },
@@ -994,8 +1020,8 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [isManualCarModelEntry, setIsManualCarModelEntry] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [targetsByPeriod, setTargetsByPeriod] = useState<MonthlyTargetsByPeriod>({});
-  const [selectedPeriodValue, setSelectedPeriodValue] = useState(
-    DEFAULT_DASHBOARD_PERIOD_VALUE,
+  const [selectedPeriodValue, setSelectedPeriodValue] = useState(() =>
+    getDefaultDashboardPeriodValue(),
   );
   const [marketData, setMarketData] = useState<any>(null);
   const [storageReady, setStorageReady] = useState(false);
@@ -1170,6 +1196,10 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
     if (!storageReady || !effectiveUserId) return;
     if (dataLoadedForUserIdRef.current !== effectiveUserId) return;
     if (userRole === "admin" && !viewedUserId) return;
+    if (Object.keys(targetsByPeriod).length === 0) {
+      const existingTargets = loadTargetsByPeriod(effectiveUserId);
+      if (Object.keys(existingTargets).length > 0) return;
+    }
     localStorage.setItem(
       getTargetsStorageKey(effectiveUserId),
       JSON.stringify(targetsByPeriod),
@@ -1695,38 +1725,56 @@ console.log("Delete error:", error);
 
               <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
                 <MonthlyTargetCard
+                  key={`deals-target-${selectedPeriodValue}`}
                   entranceIndex={2}
+                  periodKey={selectedPeriodValue}
                   title="יעד עסקאות חודשי"
                   subtitle={`חוזה חתום | ${dashboardPeriodLabel}`}
                   icon={<Target className="h-5 w-5" />}
                   target={monthlyTargets.dealsTarget}
                   actual={monthlyApprovedDeals}
                   onTargetChange={(dealsTarget) =>
-                    setTargetsByPeriod((prev) => ({
-                      ...prev,
-                      [selectedPeriodValue]: {
-                        ...getTargetsForPeriod(prev, selectedPeriodValue),
+                    setTargetsByPeriod((prev) => {
+                      const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
                         dealsTarget,
-                      },
-                    }))
+                      });
+                      persistTargetsByPeriodIfReady(
+                        effectiveUserId,
+                        next,
+                        storageReady,
+                        dataLoadedForUserIdRef.current,
+                        userRole,
+                        viewedUserId,
+                      );
+                      return next;
+                    })
                   }
                   tone="cyan"
                 />
                 <MonthlyTargetCard
+                  key={`profit-target-${selectedPeriodValue}`}
                   entranceIndex={3}
+                  periodKey={selectedPeriodValue}
                   title="יעד רווחיות חודשי"
                   subtitle={`חוזה חתום + ריבית 6% ומעלה (רגיל) | ${dashboardPeriodLabel}`}
                   icon={<TrendingUp className="h-5 w-5" />}
                   target={monthlyTargets.profitabilityTarget}
                   actual={monthlyProfitableDeals}
                   onTargetChange={(profitabilityTarget) =>
-                    setTargetsByPeriod((prev) => ({
-                      ...prev,
-                      [selectedPeriodValue]: {
-                        ...getTargetsForPeriod(prev, selectedPeriodValue),
+                    setTargetsByPeriod((prev) => {
+                      const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
                         profitabilityTarget,
-                      },
-                    }))
+                      });
+                      persistTargetsByPeriodIfReady(
+                        effectiveUserId,
+                        next,
+                        storageReady,
+                        dataLoadedForUserIdRef.current,
+                        userRole,
+                        viewedUserId,
+                      );
+                      return next;
+                    })
                   }
                   tone="green"
                 />
@@ -3043,6 +3091,7 @@ function MonthlyTargetCard({
   onTargetChange,
   tone = "cyan",
   entranceIndex = 0,
+  periodKey,
 }: {
   title: string;
   subtitle: string;
@@ -3052,8 +3101,13 @@ function MonthlyTargetCard({
   onTargetChange: (value: number) => void;
   tone?: "cyan" | "green";
   entranceIndex?: number;
+  periodKey: string;
 }) {
   const prefersReducedMotion = usePrefersReducedMotion();
+  const [draftTarget, setDraftTarget] = useState(String(target));
+  const draftTargetRef = useRef(String(target));
+  const targetRef = useRef(target);
+  const onTargetChangeRef = useRef(onTargetChange);
   const toneText = tone === "green" ? "text-emerald-300" : "text-cyan-300";
   const progressPercent = target > 0 ? Math.round((actual / target) * 100) : 0;
   const progressWidth = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
@@ -3061,6 +3115,39 @@ function MonthlyTargetCard({
     tone === "green"
       ? "from-emerald-500 via-cyan-400 to-green-300"
       : "from-blue-500 via-cyan-400 to-cyan-300";
+
+  useEffect(() => {
+    setDraftTarget(String(target));
+  }, [periodKey, target]);
+
+  useEffect(() => {
+    draftTargetRef.current = draftTarget;
+  }, [draftTarget]);
+
+  useEffect(() => {
+    targetRef.current = target;
+  }, [target]);
+
+  useEffect(() => {
+    onTargetChangeRef.current = onTargetChange;
+  }, [onTargetChange]);
+
+  useEffect(() => {
+    return () => {
+      const nextTarget = normalizeTarget(draftTargetRef.current, targetRef.current);
+      if (nextTarget !== targetRef.current) {
+        onTargetChangeRef.current(nextTarget);
+      }
+    };
+  }, [periodKey]);
+
+  const commitTarget = () => {
+    const nextTarget = normalizeTarget(draftTarget, target);
+    setDraftTarget(String(nextTarget));
+    if (nextTarget !== target) {
+      onTargetChange(nextTarget);
+    }
+  };
 
   return (
     <motion.div
@@ -3081,8 +3168,14 @@ function MonthlyTargetCard({
           <input
             type="number"
             min={0}
-            value={target}
-            onChange={(e) => onTargetChange(normalizeTarget(e.target.value, 0))}
+            value={draftTarget}
+            onChange={(e) => setDraftTarget(e.target.value)}
+            onBlur={commitTarget}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
+            }}
             className="input-neon w-20 text-center text-sm font-bold sm:w-24"
           />
         </label>
