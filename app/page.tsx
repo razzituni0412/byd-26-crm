@@ -1,4 +1,6 @@
 "use client";
+import { logActivity, type ActivityNotificationContext } from "@/app/activity-log";
+import { ActivityLogPanel } from "@/app/components/ActivityLogPanel";
 import { supabase } from "@/app/supabase";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
@@ -25,6 +27,7 @@ import {
   Trophy,
   TrendingUp,
   Users,
+  ScrollText,
   Share2,
   X,
   SunMedium,
@@ -1032,6 +1035,8 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [adminUsers, setAdminUsers] = useState<AdminAuthUser[]>([]);
   const [isLoadingAdminUsers, setIsLoadingAdminUsers] = useState(false);
   const [adminUsersError, setAdminUsersError] = useState<string | null>(null);
+  const [isActivityLogOpen, setIsActivityLogOpen] = useState(false);
+  const [showActivityLog, setShowActivityLog] = useState(false);
   const [viewedUserId, setViewedUserId] = useState<string | null>(null);
   const [viewedUserEmail, setViewedUserEmail] = useState<string | null>(null);
   const managementMenuRef = useRef<HTMLDivElement>(null);
@@ -1041,6 +1046,78 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const showManagementButton = canAccessManagement(userRole);
   const showPersonalDashboard = hasPersonalDashboard(userRole) || isViewingAsUser;
   const showPersonalDeals = hasPersonalDeals(userRole) || isViewingAsUser;
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function checkActivityLogAccess(accessToken: string) {
+      try {
+        const response = await fetch("/api/admin/activity-log-access", {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        });
+        const data = await response.json();
+
+        if (cancelled) return;
+
+        const allowed = Boolean(data.allowed);
+        setShowActivityLog(allowed);
+        if (!allowed) {
+          setIsActivityLogOpen(false);
+        }
+      } catch {
+        if (!cancelled) {
+          setShowActivityLog(false);
+          setIsActivityLogOpen(false);
+        }
+      }
+    }
+
+    function clearActivityLogAccess() {
+      setShowActivityLog(false);
+      setIsActivityLogOpen(false);
+    }
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (cancelled) return;
+
+      if (!session?.access_token) {
+        clearActivityLogAccess();
+        return;
+      }
+
+      void checkActivityLogAccess(session.access_token);
+    });
+
+    return () => {
+      cancelled = true;
+      subscription.unsubscribe();
+    };
+  }, []);
+
+  const logUserActivity = useCallback(
+    (
+      actionType: Parameters<typeof logActivity>[0]["actionType"],
+      description: string,
+      dealId?: string | null,
+      notificationContext?: ActivityNotificationContext | null,
+    ) => {
+      if (!currentUser?.id) return;
+      void logActivity({
+        userId: currentUser.id,
+        userName: getUserName(currentUser.email),
+        userEmail: currentUser.email ?? null,
+        actionType,
+        description,
+        dealId,
+        notificationContext,
+      });
+    },
+    [currentUser],
+  );
 
   const loadAdminUsers = useCallback(async () => {
     setIsLoadingAdminUsers(true);
@@ -1348,7 +1425,7 @@ if (!user) {
     const agentName = normalizeAgentName(formData.agentName);
 
     if (editingId) {
-      await supabase
+      const { error: updateError } = await supabase
   .from("deals")
   .update({
     date: dealDate,
@@ -1380,6 +1457,9 @@ if (!user) {
             : deal,
         ),
       );
+      if (!updateError) {
+        logUserActivity("deal_updated", "עסקה עודכנה", editingId);
+      }
     } else {
       const { data: insertedDeal, error: insertError } = await supabase
   .from("deals")
@@ -1415,6 +1495,7 @@ if (!user) {
       };
       setDeals((prev) => [newDeal, ...prev]);
       playNewDealSuccessSound();
+      logUserActivity("deal_created", "נוצרה עסקה חדשה", insertedDeal.id);
     }
 
     resetForm();
@@ -1440,6 +1521,7 @@ if (!user) {
   };
 
   const deleteDeal = async (id: string) => {
+    const dealToDelete = deals.find((deal) => deal.id === id);
     const { data, error } = await supabase
   .from("deals")
   .delete()
@@ -1453,6 +1535,18 @@ console.log("Delete error:", error);
   console.log("Deleting ID:", id);
     setDeals((prev) => prev.filter((deal) => deal.id !== id));
     if (editingId === id) resetForm();
+    if (!error) {
+      logUserActivity("deal_deleted", "עסקה נמחקה", id, dealToDelete
+        ? {
+            customer_name: dealToDelete.customerName,
+            car_model: dealToDelete.carModel,
+            amount:
+              dealToDelete.financingAmount > 0
+                ? dealToDelete.financingAmount
+                : dealToDelete.vehiclePrice,
+          }
+        : undefined);
+    }
   };
 
   const tabs: { key: PageTab; label: string; icon: React.ReactNode }[] = [
@@ -1499,7 +1593,7 @@ console.log("Delete error:", error);
             onClick={async () => {
               setIsLoggingIn(true);
               await new Promise((resolve) => setTimeout(resolve, 800));
-              const { error } = await supabase.auth.signInWithPassword({
+              const { data, error } = await supabase.auth.signInWithPassword({
                 email: loginEmail,
                 password: loginPassword,
               });
@@ -1508,6 +1602,16 @@ console.log("Delete error:", error);
                 setIsLoggingIn(false);
                 alert(error.message);
                 return;
+              }
+
+              if (data.user) {
+                void logActivity({
+                  userId: data.user.id,
+                  userName: getUserName(data.user.email),
+                  userEmail: data.user.email ?? null,
+                  actionType: "login",
+                  description: "התחברות למערכת",
+                });
               }
   
               window.location.reload();
@@ -1601,6 +1705,10 @@ console.log("Delete error:", error);
                               setViewedUserEmail(user.email);
                               setActivePage("dashboard");
                               setIsManagementMenuOpen(false);
+                              logUserActivity(
+                                "view_as_changed",
+                                `צפייה כמשתמש: ${getUserName(user.email)}`,
+                              );
                             }}
                             className={`flex w-full flex-row-reverse items-center gap-2.5 rounded-lg px-2 py-2 text-right transition-all ${
                               !canViewAs
@@ -1629,11 +1737,31 @@ console.log("Delete error:", error);
                         ))
                       )}
                     </div>
+                    {showActivityLog ? (
+                      <>
+                        <div className="my-1 border-t border-cyan-400/20" />
+                        <button
+                          type="button"
+                          role="menuitem"
+                          onClick={() => {
+                            setIsActivityLogOpen(true);
+                            setIsManagementMenuOpen(false);
+                          }}
+                          className="flex w-full flex-row-reverse items-center gap-2 rounded-lg px-3 py-2 text-right text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/10 hover:text-cyan-100"
+                        >
+                          <ScrollText className="h-4 w-4 shrink-0 text-cyan-300" />
+                          יומן פעילות
+                        </button>
+                      </>
+                    ) : null}
                     <div className="my-1 border-t border-cyan-400/20" />
                     <button
                       type="button"
                       role="menuitem"
                       onClick={() => {
+                        if (viewedUserId) {
+                          logUserActivity("view_as_changed", "חזרה לחשבון המנהל");
+                        }
                         setViewedUserId(null);
                         setViewedUserEmail(null);
                         setIsManagementMenuOpen(false);
@@ -2292,7 +2420,11 @@ console.log("Delete error:", error);
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -8 }}
             >
-              <AmortizationScheduleTab />
+              <AmortizationScheduleTab
+                onQuoteSent={(context) =>
+                  logUserActivity("quote_sent", "נשלחה הצעת מחיר", null, context)
+                }
+              />
             </motion.section>
           )}
         </AnimatePresence>
@@ -2310,12 +2442,19 @@ console.log("Delete error:", error);
             }}
           />
         )}
+        {isActivityLogOpen && showActivityLog ? (
+          <ActivityLogPanel onClose={() => setIsActivityLogOpen(false)} />
+        ) : null}
       </div>
     </div>
   );
 }
 
-function AmortizationScheduleTab() {
+function AmortizationScheduleTab({
+  onQuoteSent,
+}: {
+  onQuoteSent?: (context: ActivityNotificationContext) => void;
+}) {
   const [loanAmount, setLoanAmount] = useState("150000");
   const [termMonths, setTermMonths] = useState("60");
   const [annualRate, setAnnualRate] = useState("6.5");
@@ -2574,6 +2713,13 @@ function AmortizationScheduleTab() {
             monthlyPayment={result.monthlyPayment}
             onClose={closeOfferModal}
             onReturnToSchedule={closeOfferModal}
+            onShareSuccess={() =>
+              onQuoteSent?.({
+                customer_name: offerCustomerName.trim() || null,
+                car_model: offerCarModel,
+                amount: Number(loanAmount),
+              })
+            }
           />
         ) : null}
       </AnimatePresence>
@@ -2592,6 +2738,7 @@ function FinancingOfferModal({
   monthlyPayment,
   onClose,
   onReturnToSchedule,
+  onShareSuccess,
 }: {
   customerName: string;
   onCustomerNameChange: (name: string) => void;
@@ -2603,6 +2750,7 @@ function FinancingOfferModal({
   monthlyPayment: number;
   onClose: () => void;
   onReturnToSchedule: () => void;
+  onShareSuccess?: () => void;
 }) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
@@ -2673,6 +2821,7 @@ function FinancingOfferModal({
               text: shareText,
             });
             setShareSuccess(true);
+            onShareSuccess?.();
             return;
           }
           await navigator.share({
@@ -2680,6 +2829,7 @@ function FinancingOfferModal({
             text: shareText,
           });
           setShareSuccess(true);
+          onShareSuccess?.();
           return;
         } catch (error) {
           if (error instanceof DOMException && error.name === "AbortError") return;
@@ -2688,10 +2838,11 @@ function FinancingOfferModal({
 
       await downloadOfferImage("byd-haifa-financing-offer.png");
       setShareSuccess(true);
+      onShareSuccess?.();
     } finally {
       setIsExporting(false);
     }
-  }, [captureOfferImage, downloadOfferImage, isExporting, shareText]);
+  }, [captureOfferImage, downloadOfferImage, isExporting, onShareSuccess, shareText]);
 
   const handleReturnToSchedule = useCallback(() => {
     onReturnToSchedule();
