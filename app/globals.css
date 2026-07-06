@@ -71,6 +71,16 @@ body {
   );
 }
 
+/* Mobile: keep header actions below iOS status bar / notch */
+@media (max-width: 639px) {
+  .app-safe-top {
+    padding-top: max(
+      44px,
+      calc(env(safe-area-inset-top, 0px) + 12px)
+    );
+  }
+}
+
 .mission-header__glow {
   pointer-events: none;
   position: absolute;

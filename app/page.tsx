@@ -1635,7 +1635,7 @@ console.log("Delete error:", error);
     <div className="min-h-screen bg-[#03060d] text-white">
       <div className="cinematic-bg pointer-events-none fixed inset-0" />
 
-      <div className="mx-auto w-full max-w-6xl px-3 pb-12 pt-4 sm:px-5 sm:pt-5">
+      <div className="mx-auto w-full max-w-6xl px-3 pb-12 app-safe-top sm:px-5 sm:pt-5">
         <header className="mission-header relative mb-3 text-center">
           <div className="mission-header__glow" aria-hidden />
           <div className="relative z-10">
