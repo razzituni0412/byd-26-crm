@@ -1,6 +1,7 @@
 "use client";
 import { logActivity, type ActivityNotificationContext } from "@/app/activity-log";
 import { ActivityLogPanel } from "@/app/components/ActivityLogPanel";
+import { loadKpiTargets, saveKpiTargetsPatch } from "@/app/kpi-targets";
 import {
   supabase,
   isInvalidAuthSessionError,
@@ -87,16 +88,11 @@ type Deal = {
 type DealFormData = Omit<Deal, "id">;
 
 const STORAGE_KEY = "future-crm-deals-v1";
-const TARGETS_STORAGE_KEY = "future-crm-monthly-targets-v1";
 const AGENTS_STORAGE_KEY = "future-crm-agents-v1";
 const TICKER_MAX_DEALS = 20;
 
 function getDealsStorageKey(userId: string) {
   return `${STORAGE_KEY}:${userId}`;
-}
-
-function getTargetsStorageKey(userId: string) {
-  return `${TARGETS_STORAGE_KEY}:${userId}`;
 }
 
 type MonthlyTargets = {
@@ -249,61 +245,6 @@ function normalizeTarget(value: unknown, fallback: number) {
   return Number.isFinite(target) && target >= 0 ? target : fallback;
 }
 
-function normalizeMonthlyTargetsEntry(raw: unknown): MonthlyTargets {
-  if (!raw || typeof raw !== "object") {
-    return { ...DEFAULT_MONTHLY_TARGETS };
-  }
-  const entry = raw as Partial<MonthlyTargets>;
-  return {
-    dealsTarget: normalizeTarget(entry.dealsTarget, DEFAULT_MONTHLY_TARGETS.dealsTarget),
-    profitabilityTarget: normalizeTarget(
-      entry.profitabilityTarget,
-      DEFAULT_MONTHLY_TARGETS.profitabilityTarget,
-    ),
-  };
-}
-
-function isLegacyMonthlyTargetsFormat(parsed: unknown): parsed is Partial<MonthlyTargets> {
-  if (!parsed || typeof parsed !== "object") return false;
-  const record = parsed as Record<string, unknown>;
-  const hasLegacyFields = "dealsTarget" in record || "profitabilityTarget" in record;
-  const hasPeriodKeys = Object.keys(record).some(
-    (key) => /^\d{4}-\d{2}$/.test(key) || key === `${DASHBOARD_YEAR}`,
-  );
-  return hasLegacyFields && !hasPeriodKeys;
-}
-
-function loadTargetsByPeriod(userId: string): MonthlyTargetsByPeriod {
-  const scopedKey = getTargetsStorageKey(userId);
-  let stored = window.localStorage.getItem(scopedKey);
-  if (!stored) {
-    stored = window.localStorage.getItem(TARGETS_STORAGE_KEY);
-  }
-  if (!stored) return {};
-  try {
-    const parsed = JSON.parse(stored) as unknown;
-    if (isLegacyMonthlyTargetsFormat(parsed)) {
-      const defaultKey = getDefaultDashboardPeriodValue();
-      const periodKey =
-        /^\d{4}-\d{2}$/.test(defaultKey) || defaultKey === `${DASHBOARD_YEAR}`
-          ? defaultKey
-          : `${DASHBOARD_YEAR}-01`;
-      return { [periodKey]: normalizeMonthlyTargetsEntry(parsed) };
-    }
-    if (!parsed || typeof parsed !== "object") return {};
-    const result: MonthlyTargetsByPeriod = {};
-    for (const [key, value] of Object.entries(parsed as Record<string, unknown>)) {
-      if (/^\d{4}-\d{2}$/.test(key) || key === `${DASHBOARD_YEAR}`) {
-        result[key] = normalizeMonthlyTargetsEntry(value);
-      }
-    }
-    return result;
-  } catch {
-    window.localStorage.removeItem(TARGETS_STORAGE_KEY);
-    return {};
-  }
-}
-
 function getTargetsForPeriod(
   targetsByPeriod: MonthlyTargetsByPeriod,
   periodKey: string,
@@ -323,9 +264,10 @@ function patchTargetsForPeriod(
   };
 }
 
-function persistTargetsByPeriodIfReady(
+function persistKpiTargetsIfReady(
   userId: string | undefined,
-  targetsByPeriod: MonthlyTargetsByPeriod,
+  periodKey: string,
+  patch: Partial<MonthlyTargets>,
   storageReady: boolean,
   loadedForUserId: string | null,
   userRole: UserRole,
@@ -334,7 +276,7 @@ function persistTargetsByPeriodIfReady(
   if (!storageReady || !userId) return;
   if (loadedForUserId !== userId) return;
   if (userRole === "admin" && !viewedUserId) return;
-  localStorage.setItem(getTargetsStorageKey(userId), JSON.stringify(targetsByPeriod));
+  void saveKpiTargetsPatch(userId, periodKey, patch);
 }
 
 async function loadDeals(userId: string): Promise<Deal[]> {
@@ -1259,7 +1201,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
     async function reloadEffectiveUserData() {
       dataLoadedForUserIdRef.current = null;
       const loadedDeals = await loadDeals(effectiveUserId);
-      const loadedTargets = loadTargetsByPeriod(effectiveUserId);
+      const loadedTargets = await loadKpiTargets(effectiveUserId);
 
       if (cancelled) return;
 
@@ -1321,20 +1263,6 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
     if (userRole === "admin" && !viewedUserId) return;
     localStorage.setItem(getDealsStorageKey(effectiveUserId), JSON.stringify(deals));
   }, [deals, storageReady, effectiveUserId, userRole, viewedUserId]);
-
-  useEffect(() => {
-    if (!storageReady || !effectiveUserId) return;
-    if (dataLoadedForUserIdRef.current !== effectiveUserId) return;
-    if (userRole === "admin" && !viewedUserId) return;
-    if (Object.keys(targetsByPeriod).length === 0) {
-      const existingTargets = loadTargetsByPeriod(effectiveUserId);
-      if (Object.keys(existingTargets).length > 0) return;
-    }
-    localStorage.setItem(
-      getTargetsStorageKey(effectiveUserId),
-      JSON.stringify(targetsByPeriod),
-    );
-  }, [targetsByPeriod, storageReady, effectiveUserId, userRole, viewedUserId]);
 
   useEffect(() => {
     if (!storageReady) return;
@@ -1919,9 +1847,10 @@ console.log("Delete error:", error);
                       const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
                         dealsTarget,
                       });
-                      persistTargetsByPeriodIfReady(
+                      persistKpiTargetsIfReady(
                         effectiveUserId,
-                        next,
+                        selectedPeriodValue,
+                        { dealsTarget },
                         storageReady,
                         dataLoadedForUserIdRef.current,
                         userRole,
@@ -1946,9 +1875,10 @@ console.log("Delete error:", error);
                       const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
                         profitabilityTarget,
                       });
-                      persistTargetsByPeriodIfReady(
+                      persistKpiTargetsIfReady(
                         effectiveUserId,
-                        next,
+                        selectedPeriodValue,
+                        { profitabilityTarget },
                         storageReady,
                         dataLoadedForUserIdRef.current,
                         userRole,
