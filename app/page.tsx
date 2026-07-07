@@ -188,10 +188,6 @@ function parseDashboardPeriod(value: string): DashboardPeriod | null {
   return null;
 }
 
-function getDashboardPeriodLabel(value: string) {
-  return DASHBOARD_PERIOD_OPTIONS.find((option) => option.value === value)?.label ?? "";
-}
-
 function isDealInPeriod(deal: Deal, period: DashboardPeriod | null) {
   if (!period || !deal.date) return false;
   const [dealYear, dealMonth] = deal.date.split("-").map(Number);
@@ -1287,7 +1283,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
     () => parseDashboardPeriod(selectedPeriodValue),
     [selectedPeriodValue],
   );
-  const dashboardPeriodLabel = getDashboardPeriodLabel(selectedPeriodValue);
+  const isDashboardYearlyView = dashboardPeriod?.kind === "year";
 
   const monthlyTargets = useMemo(
     () => getTargetsForPeriod(targetsByPeriod, selectedPeriodValue),
@@ -1841,82 +1837,84 @@ console.log("Delete error:", error);
                 </label>
               </DashboardReveal>
 
-              <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                <MonthlyTargetCard
-                  key={`deals-target-${selectedPeriodValue}`}
-                  entranceIndex={2}
-                  periodKey={selectedPeriodValue}
-                  title="יעד עסקאות חודשי"
-                  subtitle={`חוזה חתום | ${dashboardPeriodLabel}`}
-                  icon={<Target className="h-5 w-5" />}
-                  target={monthlyTargets.dealsTarget}
-                  actual={monthlyApprovedDeals}
-                  onTargetChange={(dealsTarget) =>
-                    setTargetsByPeriod((prev) => {
-                      const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
-                        dealsTarget,
-                      });
-                      persistKpiTargetsIfReady(
-                        effectiveUserId,
-                        selectedPeriodValue,
-                        { dealsTarget },
-                        storageReady,
-                        dataLoadedForUserIdRef.current,
-                        userRole,
-                        viewedUserId,
-                      );
-                      return next;
-                    })
-                  }
-                  tone="cyan"
-                />
-                <MonthlyTargetCard
-                  key={`profit-target-${selectedPeriodValue}`}
-                  entranceIndex={3}
-                  periodKey={selectedPeriodValue}
-                  title="יעד רווחיות חודשי"
-                  subtitle="עסקאות העומדות ביעד הרווחיות"
-                  icon={<TrendingUp className="h-5 w-5" />}
-                  target={monthlyTargets.profitabilityTarget}
-                  actual={monthlyProfitableDeals}
-                  minInterestRate={monthlyTargets.profitabilityMinInterestRate}
-                  onMinInterestRateChange={(profitabilityMinInterestRate) =>
-                    setTargetsByPeriod((prev) => {
-                      const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
-                        profitabilityMinInterestRate,
-                      });
-                      persistKpiTargetsIfReady(
-                        effectiveUserId,
-                        selectedPeriodValue,
-                        { profitabilityMinInterestRate },
-                        storageReady,
-                        dataLoadedForUserIdRef.current,
-                        userRole,
-                        viewedUserId,
-                      );
-                      return next;
-                    })
-                  }
-                  onTargetChange={(profitabilityTarget) =>
-                    setTargetsByPeriod((prev) => {
-                      const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
-                        profitabilityTarget,
-                      });
-                      persistKpiTargetsIfReady(
-                        effectiveUserId,
-                        selectedPeriodValue,
-                        { profitabilityTarget },
-                        storageReady,
-                        dataLoadedForUserIdRef.current,
-                        userRole,
-                        viewedUserId,
-                      );
-                      return next;
-                    })
-                  }
-                  tone="green"
-                />
-              </div>
+              {!isDashboardYearlyView ? (
+                <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+                  <MonthlyTargetCard
+                    key={`deals-target-${selectedPeriodValue}`}
+                    entranceIndex={2}
+                    periodKey={selectedPeriodValue}
+                    title="יעד עסקאות"
+                    subtitle="חוזה חתום בחודש הנבחר."
+                    icon={<Target className="h-5 w-5" />}
+                    target={monthlyTargets.dealsTarget}
+                    actual={monthlyApprovedDeals}
+                    onTargetChange={(dealsTarget) =>
+                      setTargetsByPeriod((prev) => {
+                        const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
+                          dealsTarget,
+                        });
+                        persistKpiTargetsIfReady(
+                          effectiveUserId,
+                          selectedPeriodValue,
+                          { dealsTarget },
+                          storageReady,
+                          dataLoadedForUserIdRef.current,
+                          userRole,
+                          viewedUserId,
+                        );
+                        return next;
+                      })
+                    }
+                    tone="cyan"
+                  />
+                  <MonthlyTargetCard
+                    key={`profit-target-${selectedPeriodValue}`}
+                    entranceIndex={3}
+                    periodKey={selectedPeriodValue}
+                    title="יעד רווחיות"
+                    subtitle="עסקאות העומדות ביעד הרווחיות."
+                    icon={<TrendingUp className="h-5 w-5" />}
+                    target={monthlyTargets.profitabilityTarget}
+                    actual={monthlyProfitableDeals}
+                    minInterestRate={monthlyTargets.profitabilityMinInterestRate}
+                    onMinInterestRateChange={(profitabilityMinInterestRate) =>
+                      setTargetsByPeriod((prev) => {
+                        const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
+                          profitabilityMinInterestRate,
+                        });
+                        persistKpiTargetsIfReady(
+                          effectiveUserId,
+                          selectedPeriodValue,
+                          { profitabilityMinInterestRate },
+                          storageReady,
+                          dataLoadedForUserIdRef.current,
+                          userRole,
+                          viewedUserId,
+                        );
+                        return next;
+                      })
+                    }
+                    onTargetChange={(profitabilityTarget) =>
+                      setTargetsByPeriod((prev) => {
+                        const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
+                          profitabilityTarget,
+                        });
+                        persistKpiTargetsIfReady(
+                          effectiveUserId,
+                          selectedPeriodValue,
+                          { profitabilityTarget },
+                          storageReady,
+                          dataLoadedForUserIdRef.current,
+                          userRole,
+                          viewedUserId,
+                        );
+                        return next;
+                      })
+                    }
+                    tone="green"
+                  />
+                </div>
+              ) : null}
 
               <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
                 <StatCard
@@ -3260,7 +3258,7 @@ function MonthlyTargetCard({
   periodKey,
 }: {
   title: string;
-  subtitle: string;
+  subtitle?: string;
   icon: React.ReactNode;
   target: number;
   actual: number;
@@ -3374,7 +3372,9 @@ function MonthlyTargetCard({
             {icon}
             {title}
           </h2>
-          <p className="mt-1 text-[11px] text-cyan-200/70 sm:text-xs">{subtitle}</p>
+          {subtitle ? (
+            <p className="mt-1 text-[11px] text-cyan-200/70 sm:text-xs">{subtitle}</p>
+          ) : null}
           <div className="mt-2 grid grid-cols-2 gap-2">
             <label className="min-w-0 text-right">
               <span className="mb-1 block text-[10px] font-medium text-cyan-200/75">
@@ -3422,7 +3422,9 @@ function MonthlyTargetCard({
               {icon}
               {title}
             </h2>
-            <p className="mt-1 text-[11px] text-cyan-200/70 sm:text-xs">{subtitle}</p>
+            {subtitle ? (
+              <p className="mt-1 text-[11px] text-cyan-200/70 sm:text-xs">{subtitle}</p>
+            ) : null}
           </div>
           <label className="shrink-0 text-right">
             <span className="mb-1 block text-[10px] font-medium text-cyan-200/75">יעד</span>
