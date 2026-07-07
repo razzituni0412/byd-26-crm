@@ -39,6 +39,8 @@ import {
   Users,
   ScrollText,
   Share2,
+  Download,
+  Printer,
   X,
   SunMedium,
   CloudSun,
@@ -520,6 +522,193 @@ function formatProposalShekels(value: number, fractionDigits: 0 | 2 = 0) {
 
 function formatProposalTerm(months: number) {
   return `${months} חודשים`;
+}
+
+function formatProposalRateLabel(annualRate: number) {
+  return Number.isInteger(annualRate)
+    ? `${annualRate}%`
+    : `${annualRate.toFixed(2).replace(/\.?0+$/, "")}%`;
+}
+
+function buildFinancingOfferShareText(customerName: string) {
+  const trimmedName = customerName.trim();
+  const greeting = trimmedName ? `שלום רב, ${trimmedName}` : "שלום רב,";
+
+  return `${greeting}
+
+בהמשך לשיחתנו, מצורפת הצעת המימון.
+
+לצורך בחינת בקשת המימון, אבקש להעביר את המסמכים הבאים:
+
+• צילום תעודת זהות + ספח פתוח
+• צילום רישיון נהיגה
+• אישור ניהול חשבון בנק או צילום צ'ק מבוטל
+
+לאחר שליחת המסמכים, אבקש להשלים הרשמה לבנקאות פתוחה באמצעות הקישור הבא:
+
+https://shlomo-sixt.open-finance.ai
+
+לאחר קבלת המסמכים והשלמת ההרשמה לבנקאות פתוחה, נבחן את בקשת המימון ונעדכן אותך בהמשך התהליך.
+
+בברכה,
+צוות המימון | BYD ISRAEL`;
+}
+
+function isMobileShareDevice() {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+function escapePrintHtml(value: string) {
+  return value
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+function buildFinancingOfferPrintHtml({
+  customerName,
+  carModel,
+  financingAmount,
+  termMonths,
+  annualRate,
+  monthlyPayment,
+  logoUrl,
+}: {
+  customerName: string;
+  carModel: string;
+  financingAmount: number;
+  termMonths: number;
+  annualRate: number;
+  monthlyPayment: number;
+  logoUrl: string;
+}) {
+  const customerLabel = escapePrintHtml(customerName.trim() || "—");
+  const safeCarModel = escapePrintHtml(carModel);
+  const rateLabel = formatProposalRateLabel(annualRate);
+
+  return `<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="utf-8" />
+  <title>הצעת מימון</title>
+  <style>
+    @page { size: A4; margin: 18mm; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Arial, "Segoe UI", sans-serif;
+      color: #0f172a;
+      background: #fff;
+      line-height: 1.5;
+    }
+    .page {
+      max-width: 170mm;
+      margin: 0 auto;
+    }
+    .header {
+      text-align: center;
+      border-bottom: 2px solid #0891b2;
+      padding-bottom: 12px;
+      margin-bottom: 24px;
+    }
+    .header img {
+      width: 140px;
+      height: auto;
+      margin-bottom: 8px;
+    }
+    .header h1 {
+      margin: 0;
+      font-size: 24px;
+      font-weight: 700;
+      color: #0e7490;
+    }
+    .section {
+      margin-bottom: 18px;
+    }
+    .section h2 {
+      margin: 0 0 10px;
+      font-size: 14px;
+      font-weight: 700;
+      color: #155e75;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      border: 1px solid #cbd5e1;
+      padding: 10px 12px;
+      text-align: right;
+      font-size: 14px;
+    }
+    th {
+      width: 38%;
+      background: #f0fdfa;
+      color: #0f766e;
+      font-weight: 600;
+    }
+    .highlight {
+      margin-top: 22px;
+      padding: 18px;
+      border: 2px solid #0891b2;
+      border-radius: 10px;
+      text-align: center;
+      background: #ecfeff;
+    }
+    .highlight-label {
+      font-size: 13px;
+      color: #0e7490;
+      margin-bottom: 6px;
+      font-weight: 600;
+    }
+    .highlight-value {
+      font-size: 32px;
+      font-weight: 800;
+      color: #0f172a;
+      direction: ltr;
+    }
+    .footer {
+      margin-top: 28px;
+      padding-top: 14px;
+      border-top: 1px solid #cbd5e1;
+      font-size: 10px;
+      color: #64748b;
+      line-height: 1.55;
+      text-align: justify;
+    }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="header">
+      <img src="${logoUrl}" alt="BYD Haifa" />
+      <h1>הצעת מימון</h1>
+    </div>
+
+    <div class="section">
+      <h2>פרטי ההצעה</h2>
+      <table>
+        <tr><th>שם לקוח</th><td>${customerLabel}</td></tr>
+        <tr><th>דגם רכב</th><td>${safeCarModel}</td></tr>
+        <tr><th>סכום מימון</th><td dir="ltr">${formatProposalShekels(financingAmount)}</td></tr>
+        <tr><th>תקופה</th><td dir="ltr">${formatProposalTerm(termMonths)}</td></tr>
+        <tr><th>ריבית</th><td dir="ltr">${rateLabel}</td></tr>
+      </table>
+    </div>
+
+    <div class="highlight">
+      <div class="highlight-label">החזר חודשי</div>
+      <div class="highlight-value">${formatProposalShekels(monthlyPayment, 2)}</div>
+    </div>
+
+    <div class="footer">
+      המימון מוצע על ידי שלמה מימון בע"מ, ח.פ. 515455137 מספר רישיון: 56249, חברה בעלת רישיון מורחב למתן אשראי מאת רשות שוק ההון, ביטוח וחיסכון, בכפוף לשיקול דעתה ולתנאיה. אי-עמידה בפירעון ההלוואה או בהחזר האשראי עלולה לגרור חיוב בריבית פיגורים והליכי הוצאה לפועל.
+    </div>
+  </div>
+</body>
+</html>`;
 }
 
 type AmortizationRow = {
@@ -2766,6 +2955,7 @@ function FinancingOfferModal({
   const cardRef = useRef<HTMLDivElement>(null);
   const [isExporting, setIsExporting] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+  const [showExportDialog, setShowExportDialog] = useState(false);
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
@@ -2777,18 +2967,8 @@ function FinancingOfferModal({
     };
   }, []);
 
-  const rateLabel = Number.isInteger(annualRate)
-    ? `${annualRate}%`
-    : `${annualRate.toFixed(2).replace(/\.?0+$/, "")}%`;
-
-  const customerLabel = customerName.trim() || "לקוח";
-  const shareText = [
-    "הצעת מימון BYD חיפה",
-    customerLabel,
-    carModel,
-    `מימון ${formatProposalShekels(financingAmount)}`,
-    `החזר חודשי ${formatProposalShekels(monthlyPayment, 2)}`,
-  ].join(" | ");
+  const rateLabel = formatProposalRateLabel(annualRate);
+  const shareText = buildFinancingOfferShareText(customerName);
 
   const captureOfferImage = useCallback(async () => {
     if (!cardRef.current) return null;
@@ -2822,19 +3002,28 @@ function FinancingOfferModal({
       const response = await fetch(dataUrl);
       const blob = await response.blob();
       const file = new File([blob], "byd-haifa-financing-offer.png", { type: "image/png" });
+      const canShareWithImage = Boolean(
+        "share" in navigator &&
+          navigator.canShare?.({ files: [file] }),
+      );
 
-      if (navigator.share) {
+      if (canShareWithImage) {
         try {
-          if (navigator.canShare?.({ files: [file] })) {
-            await navigator.share({
-              files: [file],
-              title: "הצעת מימון BYD חיפה",
-              text: shareText,
-            });
-            setShareSuccess(true);
-            onShareSuccess?.();
-            return;
-          }
+          await navigator.share({
+            files: [file],
+            title: "הצעת מימון BYD חיפה",
+            text: shareText,
+          });
+          setShareSuccess(true);
+          onShareSuccess?.();
+          return;
+        } catch (error) {
+          if (error instanceof DOMException && error.name === "AbortError") return;
+        }
+      }
+
+      if (isMobileShareDevice() && "share" in navigator) {
+        try {
           await navigator.share({
             title: "הצעת מימון BYD חיפה",
             text: shareText,
@@ -2847,13 +3036,60 @@ function FinancingOfferModal({
         }
       }
 
-      await downloadOfferImage("byd-haifa-financing-offer.png");
-      setShareSuccess(true);
-      onShareSuccess?.();
+      setShowExportDialog(true);
     } finally {
       setIsExporting(false);
     }
-  }, [captureOfferImage, downloadOfferImage, isExporting, onShareSuccess, shareText]);
+  }, [captureOfferImage, isExporting, onShareSuccess, shareText]);
+
+  const handleDownloadImage = useCallback(async () => {
+    if (isExporting) return;
+    setIsExporting(true);
+    try {
+      await downloadOfferImage("byd-haifa-financing-offer.png");
+      setShareSuccess(true);
+      onShareSuccess?.();
+      setShowExportDialog(false);
+    } finally {
+      setIsExporting(false);
+    }
+  }, [downloadOfferImage, isExporting, onShareSuccess]);
+
+  const handlePrintOffer = useCallback(() => {
+    const logoUrl = `${window.location.origin}/logo.png`;
+    const printHtml = buildFinancingOfferPrintHtml({
+      customerName,
+      carModel,
+      financingAmount,
+      termMonths,
+      annualRate,
+      monthlyPayment,
+      logoUrl,
+    });
+    const printWindow = window.open("", "_blank", "noopener,noreferrer");
+    if (!printWindow) return;
+
+    printWindow.document.open();
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+    const triggerPrint = () => {
+      printWindow.focus();
+      printWindow.print();
+    };
+    if (printWindow.document.readyState === "complete") {
+      triggerPrint();
+    } else {
+      printWindow.onload = triggerPrint;
+    }
+    setShowExportDialog(false);
+  }, [
+    annualRate,
+    carModel,
+    customerName,
+    financingAmount,
+    monthlyPayment,
+    termMonths,
+  ]);
 
   const handleReturnToSchedule = useCallback(() => {
     onReturnToSchedule();
@@ -2862,7 +3098,8 @@ function FinancingOfferModal({
   if (!isMounted) return null;
 
   return createPortal(
-    <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden p-2 sm:p-4">
+    <>
+      <div className="fixed inset-0 z-[200] flex items-center justify-center overflow-hidden p-2 sm:p-4">
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 bg-[#03060d]"
@@ -3007,7 +3244,55 @@ function FinancingOfferModal({
           חזרה ללוח סילוקין
         </motion.button>
       </motion.div>
-    </div>,
+      </div>
+
+      {showExportDialog ? (
+        <div
+          className="fixed inset-0 z-[210] flex items-center justify-center p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-label="ייצוא הצעת מימון"
+        >
+          <button
+            type="button"
+            aria-label="סגירה"
+            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+            onClick={() => setShowExportDialog(false)}
+          />
+          <div className="glass-card gradient-border relative z-10 w-full max-w-sm rounded-2xl border border-cyan-500/25 bg-slate-950/95 p-4 shadow-[0_0_32px_rgba(34,211,238,0.18)]">
+            <div className="mb-4 flex items-center justify-between gap-3">
+              <button
+                type="button"
+                onClick={() => setShowExportDialog(false)}
+                className="rounded-lg p-1.5 text-cyan-300/80 transition-colors hover:bg-cyan-500/10 hover:text-cyan-100"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <h2 className="text-base font-bold text-cyan-100 sm:text-lg">ייצוא הצעת מימון</h2>
+            </div>
+            <div className="space-y-2">
+              <button
+                type="button"
+                disabled={isExporting}
+                onClick={() => void handleDownloadImage()}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-cyan-400/25 bg-slate-900/60 px-4 py-3 text-sm font-semibold text-cyan-50 transition-colors hover:bg-cyan-500/10 disabled:opacity-50"
+              >
+                <Download className="h-4 w-4 shrink-0 text-cyan-300" />
+                <span>הורד תמונה</span>
+              </button>
+              <button
+                type="button"
+                onClick={handlePrintOffer}
+                className="flex w-full items-center justify-between gap-3 rounded-xl border border-cyan-400/25 bg-slate-900/60 px-4 py-3 text-sm font-semibold text-cyan-50 transition-colors hover:bg-cyan-500/10"
+              >
+                <Printer className="h-4 w-4 shrink-0 text-cyan-300" />
+                <span>הדפס / שמור PDF</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+    </>,
     document.body,
   );
 }
