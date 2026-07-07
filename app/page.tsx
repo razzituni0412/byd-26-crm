@@ -1,7 +1,11 @@
 "use client";
 import { logActivity, type ActivityNotificationContext } from "@/app/activity-log";
 import { ActivityLogPanel } from "@/app/components/ActivityLogPanel";
-import { supabase } from "@/app/supabase";
+import {
+  supabase,
+  isInvalidAuthSessionError,
+  isTransientAuthNetworkError,
+} from "@/app/supabase";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { toPng } from "html-to-image";
@@ -1081,8 +1085,14 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
 
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange((event, session) => {
       if (cancelled) return;
+
+      if (event === "SIGNED_OUT") {
+        setCurrentUser(null);
+        clearActivityLogAccess();
+        return;
+      }
 
       if (!session?.access_token) {
         clearActivityLogAccess();
@@ -1158,10 +1168,53 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     async function initialize() {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      
+      let user = null;
+
+      try {
+        const {
+          data: { user: authUser },
+          error,
+        } = await supabase.auth.getUser();
+
+        if (error) {
+          if (isInvalidAuthSessionError(error)) {
+            user = null;
+          } else {
+            if (isTransientAuthNetworkError(error)) {
+              console.warn(
+                "Supabase auth unavailable (transient), using cached session:",
+                error.message,
+              );
+            }
+            const {
+              data: { session },
+            } = await supabase.auth.getSession();
+            user = session?.user ?? null;
+          }
+        } else {
+          user = authUser;
+        }
+      } catch (error) {
+        if (isInvalidAuthSessionError(error)) {
+          user = null;
+        } else if (isTransientAuthNetworkError(error)) {
+          console.warn(
+            "Supabase auth network failure (transient), using cached session:",
+            error,
+          );
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          user = session?.user ?? null;
+        } else {
+          console.warn("Supabase auth initialization failed:", error);
+          const {
+            data: { session },
+          } = await supabase.auth.getSession();
+          user = session?.user ?? null;
+        }
+      }
+
       setCurrentUser(user);
 
       if (user) {
@@ -1182,8 +1235,8 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
       setSelectedPeriodValue(getDefaultDashboardPeriodValue());
       setStorageReady(true);
     }
-  
-    initialize();
+
+    void initialize();
   }, []);
   useEffect(() => {
     if (!canViewAs && viewedUserId) {
