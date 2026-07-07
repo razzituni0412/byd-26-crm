@@ -3,18 +3,22 @@ import { supabase } from "@/app/supabase";
 export type MonthlyTargets = {
   dealsTarget: number;
   profitabilityTarget: number;
+  profitabilityMinInterestRate: number;
 };
 
 export type MonthlyTargetsByPeriod = Record<string, MonthlyTargets>;
 
-export type KpiType = "deals" | "profitability";
+export type KpiType = "deals" | "profitability" | "profitability_min_interest";
 
 const TARGETS_STORAGE_KEY = "future-crm-monthly-targets-v1";
 const TARGETS_MIGRATED_FLAG_PREFIX = "future-crm-targets-migrated-v1";
 
+export const DEFAULT_PROFITABILITY_MIN_INTEREST_RATE = 6;
+
 const DEFAULT_MONTHLY_TARGETS: MonthlyTargets = {
   dealsTarget: 10,
   profitabilityTarget: 5,
+  profitabilityMinInterestRate: DEFAULT_PROFITABILITY_MIN_INTEREST_RATE,
 };
 
 function getTargetsStorageKey(userId: string) {
@@ -30,6 +34,23 @@ function normalizeTarget(value: unknown, fallback: number) {
   return Number.isFinite(target) && target >= 0 ? target : fallback;
 }
 
+export function normalizeInterestRate(value: unknown, fallback = DEFAULT_PROFITABILITY_MIN_INTEREST_RATE) {
+  const rate = Number(value);
+  if (!Number.isFinite(rate) || rate < 0) {
+    return fallback;
+  }
+
+  return Math.round(rate * 100) / 100;
+}
+
+function interestRateToStorage(rate: number) {
+  return Math.round(normalizeInterestRate(rate) * 100);
+}
+
+function interestRateFromStorage(value: number) {
+  return normalizeInterestRate(value / 100);
+}
+
 function normalizeMonthlyTargetsEntry(raw: unknown): MonthlyTargets {
   if (!raw || typeof raw !== "object") {
     return { ...DEFAULT_MONTHLY_TARGETS };
@@ -41,6 +62,10 @@ function normalizeMonthlyTargetsEntry(raw: unknown): MonthlyTargets {
     profitabilityTarget: normalizeTarget(
       entry.profitabilityTarget,
       DEFAULT_MONTHLY_TARGETS.profitabilityTarget,
+    ),
+    profitabilityMinInterestRate: normalizeInterestRate(
+      entry.profitabilityMinInterestRate,
+      DEFAULT_MONTHLY_TARGETS.profitabilityMinInterestRate,
     ),
   };
 }
@@ -118,6 +143,8 @@ function rowsToTargetsByPeriod(
         row.target_value,
         DEFAULT_MONTHLY_TARGETS.profitabilityTarget,
       );
+    } else if (row.kpi_type === "profitability_min_interest") {
+      current.profitabilityMinInterestRate = interestRateFromStorage(row.target_value);
     }
     result[row.period_key] = current;
   }
@@ -150,6 +177,13 @@ function targetsByPeriodToRows(userId: string, targetsByPeriod: MonthlyTargetsBy
         targets.profitabilityTarget,
         DEFAULT_MONTHLY_TARGETS.profitabilityTarget,
       ),
+      updated_at: new Date().toISOString(),
+    });
+    rows.push({
+      user_id: userId,
+      period_key: periodKey,
+      kpi_type: "profitability_min_interest",
+      target_value: interestRateToStorage(targets.profitabilityMinInterestRate),
       updated_at: new Date().toISOString(),
     });
   }
@@ -233,11 +267,15 @@ export async function saveKpiTarget(
   kpiType: KpiType,
   targetValue: number,
 ): Promise<void> {
-  const fallback =
-    kpiType === "deals"
-      ? DEFAULT_MONTHLY_TARGETS.dealsTarget
-      : DEFAULT_MONTHLY_TARGETS.profitabilityTarget;
-  const normalizedValue = normalizeTarget(targetValue, fallback);
+  const normalizedValue =
+    kpiType === "profitability_min_interest"
+      ? interestRateToStorage(targetValue)
+      : normalizeTarget(
+          targetValue,
+          kpiType === "deals"
+            ? DEFAULT_MONTHLY_TARGETS.dealsTarget
+            : DEFAULT_MONTHLY_TARGETS.profitabilityTarget,
+        );
 
   const { error } = await supabase.from("kpi_targets").upsert(
     {
@@ -270,6 +308,17 @@ export async function saveKpiTargetsPatch(
 
   if (patch.profitabilityTarget != null) {
     tasks.push(saveKpiTarget(userId, periodKey, "profitability", patch.profitabilityTarget));
+  }
+
+  if (patch.profitabilityMinInterestRate != null) {
+    tasks.push(
+      saveKpiTarget(
+        userId,
+        periodKey,
+        "profitability_min_interest",
+        patch.profitabilityMinInterestRate,
+      ),
+    );
   }
 
   await Promise.all(tasks);

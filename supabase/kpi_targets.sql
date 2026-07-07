@@ -5,7 +5,7 @@ create table if not exists public.kpi_targets (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references auth.users (id) on delete cascade,
   period_key text not null,
-  kpi_type text not null check (kpi_type in ('deals', 'profitability')),
+  kpi_type text not null check (kpi_type in ('deals', 'profitability', 'profitability_min_interest')),
   target_value integer not null default 0 check (target_value >= 0),
   updated_at timestamptz not null default now(),
   unique (user_id, period_key, kpi_type)
@@ -104,3 +104,8 @@ create policy "kpi_targets_delete_view_as"
         and roles.can_view_as = true
     )
   );
+
+-- If the table already exists, run this once in the SQL editor:
+-- alter table public.kpi_targets drop constraint if exists kpi_targets_kpi_type_check;
+-- alter table public.kpi_targets add constraint kpi_targets_kpi_type_check
+--   check (kpi_type in ('deals', 'profitability', 'profitability_min_interest'));

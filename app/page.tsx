@@ -1,7 +1,12 @@
 "use client";
 import { logActivity, type ActivityNotificationContext } from "@/app/activity-log";
 import { ActivityLogPanel } from "@/app/components/ActivityLogPanel";
-import { loadKpiTargets, saveKpiTargetsPatch } from "@/app/kpi-targets";
+import {
+  DEFAULT_PROFITABILITY_MIN_INTEREST_RATE,
+  loadKpiTargets,
+  normalizeInterestRate,
+  saveKpiTargetsPatch,
+} from "@/app/kpi-targets";
 import {
   supabase,
   isInvalidAuthSessionError,
@@ -98,6 +103,7 @@ function getDealsStorageKey(userId: string) {
 type MonthlyTargets = {
   dealsTarget: number;
   profitabilityTarget: number;
+  profitabilityMinInterestRate: number;
 };
 
 type MonthlyTargetsByPeriod = Record<string, MonthlyTargets>;
@@ -105,6 +111,7 @@ type MonthlyTargetsByPeriod = Record<string, MonthlyTargets>;
 const DEFAULT_MONTHLY_TARGETS: MonthlyTargets = {
   dealsTarget: 10,
   profitabilityTarget: 5,
+  profitabilityMinInterestRate: DEFAULT_PROFITABILITY_MIN_INTEREST_RATE,
 };
 
 const VALID_DEAL_STATUSES: DealStatus[] = [
@@ -678,8 +685,8 @@ function getStatusStyle(status: DealStatus) {
   }
 }
 
-function isProfitableInterestRate(interestRate: number) {
-  return interestRate >= 6;
+function isProfitableInterestRate(interestRate: number, minRate = DEFAULT_PROFITABILITY_MIN_INTEREST_RATE) {
+  return interestRate >= minRate;
 }
 
 function getProfitabilityAccent(interestRate: number) {
@@ -1311,9 +1318,11 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const monthlyProfitableDeals = useMemo(
     () =>
-      regularCompletedDeals.filter((deal) => isProfitableInterestRate(deal.interestRate))
-        .length,
-    [regularCompletedDeals],
+      regularCompletedDeals.filter(
+        (deal) =>
+          deal.interestRate >= monthlyTargets.profitabilityMinInterestRate,
+      ).length,
+    [regularCompletedDeals, monthlyTargets.profitabilityMinInterestRate],
   );
 
   const totalDeals = completedPeriodDeals.length;
@@ -1866,10 +1875,28 @@ console.log("Delete error:", error);
                   entranceIndex={3}
                   periodKey={selectedPeriodValue}
                   title="יעד רווחיות חודשי"
-                  subtitle={`חוזה חתום + ריבית 6% ומעלה (רגיל) | ${dashboardPeriodLabel}`}
+                  subtitle="עסקאות העומדות ביעד הרווחיות"
                   icon={<TrendingUp className="h-5 w-5" />}
                   target={monthlyTargets.profitabilityTarget}
                   actual={monthlyProfitableDeals}
+                  minInterestRate={monthlyTargets.profitabilityMinInterestRate}
+                  onMinInterestRateChange={(profitabilityMinInterestRate) =>
+                    setTargetsByPeriod((prev) => {
+                      const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
+                        profitabilityMinInterestRate,
+                      });
+                      persistKpiTargetsIfReady(
+                        effectiveUserId,
+                        selectedPeriodValue,
+                        { profitabilityMinInterestRate },
+                        storageReady,
+                        dataLoadedForUserIdRef.current,
+                        userRole,
+                        viewedUserId,
+                      );
+                      return next;
+                    })
+                  }
                   onTargetChange={(profitabilityTarget) =>
                     setTargetsByPeriod((prev) => {
                       const next = patchTargetsForPeriod(prev, selectedPeriodValue, {
@@ -3226,6 +3253,8 @@ function MonthlyTargetCard({
   target,
   actual,
   onTargetChange,
+  minInterestRate,
+  onMinInterestRateChange,
   tone = "cyan",
   entranceIndex = 0,
   periodKey,
@@ -3236,15 +3265,23 @@ function MonthlyTargetCard({
   target: number;
   actual: number;
   onTargetChange: (value: number) => void;
+  minInterestRate?: number;
+  onMinInterestRateChange?: (value: number) => void;
   tone?: "cyan" | "green";
   entranceIndex?: number;
   periodKey: string;
 }) {
   const prefersReducedMotion = usePrefersReducedMotion();
   const [draftTarget, setDraftTarget] = useState(String(target));
+  const [draftMinInterest, setDraftMinInterest] = useState(
+    String(minInterestRate ?? DEFAULT_PROFITABILITY_MIN_INTEREST_RATE),
+  );
   const draftTargetRef = useRef(String(target));
+  const draftMinInterestRef = useRef(String(minInterestRate ?? DEFAULT_PROFITABILITY_MIN_INTEREST_RATE));
   const targetRef = useRef(target);
+  const minInterestRef = useRef(minInterestRate ?? DEFAULT_PROFITABILITY_MIN_INTEREST_RATE);
   const onTargetChangeRef = useRef(onTargetChange);
+  const onMinInterestRateChangeRef = useRef(onMinInterestRateChange);
   const toneText = tone === "green" ? "text-emerald-300" : "text-cyan-300";
   const progressPercent = target > 0 ? Math.round((actual / target) * 100) : 0;
   const progressWidth = target > 0 ? Math.min((actual / target) * 100, 100) : 0;
@@ -3255,25 +3292,50 @@ function MonthlyTargetCard({
 
   useEffect(() => {
     setDraftTarget(String(target));
-  }, [periodKey, target]);
+    if (minInterestRate != null) {
+      setDraftMinInterest(String(minInterestRate));
+    }
+  }, [periodKey, target, minInterestRate]);
 
   useEffect(() => {
     draftTargetRef.current = draftTarget;
   }, [draftTarget]);
 
   useEffect(() => {
+    draftMinInterestRef.current = draftMinInterest;
+  }, [draftMinInterest]);
+
+  useEffect(() => {
     targetRef.current = target;
   }, [target]);
+
+  useEffect(() => {
+    minInterestRef.current = minInterestRate ?? DEFAULT_PROFITABILITY_MIN_INTEREST_RATE;
+  }, [minInterestRate]);
 
   useEffect(() => {
     onTargetChangeRef.current = onTargetChange;
   }, [onTargetChange]);
 
   useEffect(() => {
+    onMinInterestRateChangeRef.current = onMinInterestRateChange;
+  }, [onMinInterestRateChange]);
+
+  useEffect(() => {
     return () => {
       const nextTarget = normalizeTarget(draftTargetRef.current, targetRef.current);
       if (nextTarget !== targetRef.current) {
         onTargetChangeRef.current(nextTarget);
+      }
+
+      if (onMinInterestRateChangeRef.current) {
+        const nextMinInterest = normalizeInterestRate(
+          draftMinInterestRef.current,
+          minInterestRef.current,
+        );
+        if (nextMinInterest !== minInterestRef.current) {
+          onMinInterestRateChangeRef.current(nextMinInterest);
+        }
       }
     };
   }, [periodKey]);
@@ -3286,37 +3348,100 @@ function MonthlyTargetCard({
     }
   };
 
+  const commitMinInterest = () => {
+    if (!onMinInterestRateChange || minInterestRate == null) return;
+    const nextMinInterest = normalizeInterestRate(draftMinInterest, minInterestRate);
+    setDraftMinInterest(String(nextMinInterest));
+    if (nextMinInterest !== minInterestRate) {
+      onMinInterestRateChange(nextMinInterest);
+    }
+  };
+
+  const hasMinInterestInput = onMinInterestRateChange != null && minInterestRate != null;
+  const targetInputClassName = hasMinInterestInput
+    ? "input-neon w-full text-center text-sm font-bold"
+    : "input-neon w-20 text-center text-sm font-bold sm:w-24";
+
   return (
     <motion.div
       {...getDashboardEntranceProps(prefersReducedMotion, entranceIndex)}
       {...getDashboardInteractionProps(prefersReducedMotion)}
       className="glass-card gradient-border floating-card rounded-2xl p-4 sm:p-5"
     >
-      <div className="mb-4 flex items-start justify-between gap-3">
-        <div className="min-w-0">
+      {hasMinInterestInput ? (
+        <div className="mb-4 min-w-0">
           <h2 className={`flex items-center gap-2 text-sm font-semibold sm:text-base ${toneText}`}>
             {icon}
             {title}
           </h2>
           <p className="mt-1 text-[11px] text-cyan-200/70 sm:text-xs">{subtitle}</p>
+          <div className="mt-2 grid grid-cols-2 gap-2">
+            <label className="min-w-0 text-right">
+              <span className="mb-1 block text-[10px] font-medium text-cyan-200/75">
+                יעד עסקאות
+              </span>
+              <input
+                type="number"
+                min={0}
+                value={draftTarget}
+                onChange={(e) => setDraftTarget(e.target.value)}
+                onBlur={commitTarget}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                className={targetInputClassName}
+              />
+            </label>
+            <label className="min-w-0 text-right">
+              <span className="mb-1 block text-[10px] font-medium text-cyan-200/75">
+                ריבית מינימום (%)
+              </span>
+              <input
+                type="number"
+                min={0}
+                step={0.1}
+                value={draftMinInterest}
+                onChange={(e) => setDraftMinInterest(e.target.value)}
+                onBlur={commitMinInterest}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.currentTarget.blur();
+                  }
+                }}
+                className={targetInputClassName}
+              />
+            </label>
+          </div>
         </div>
-        <label className="shrink-0 text-right">
-          <span className="mb-1 block text-[10px] font-medium text-cyan-200/75">יעד</span>
-          <input
-            type="number"
-            min={0}
-            value={draftTarget}
-            onChange={(e) => setDraftTarget(e.target.value)}
-            onBlur={commitTarget}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              }
-            }}
-            className="input-neon w-20 text-center text-sm font-bold sm:w-24"
-          />
-        </label>
-      </div>
+      ) : (
+        <div className="mb-4 flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <h2 className={`flex items-center gap-2 text-sm font-semibold sm:text-base ${toneText}`}>
+              {icon}
+              {title}
+            </h2>
+            <p className="mt-1 text-[11px] text-cyan-200/70 sm:text-xs">{subtitle}</p>
+          </div>
+          <label className="shrink-0 text-right">
+            <span className="mb-1 block text-[10px] font-medium text-cyan-200/75">יעד</span>
+            <input
+              type="number"
+              min={0}
+              value={draftTarget}
+              onChange={(e) => setDraftTarget(e.target.value)}
+              onBlur={commitTarget}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") {
+                  e.currentTarget.blur();
+                }
+              }}
+              className={targetInputClassName}
+            />
+          </label>
+        </div>
+      )}
 
       <div className="mb-3 flex items-end justify-between gap-3">
         <div>
