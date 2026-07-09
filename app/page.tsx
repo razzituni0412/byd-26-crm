@@ -47,9 +47,14 @@ import {
   Moon,
   Sparkles,
   Landmark,
-  BarChart3
+  BarChart3,
+  Lock,
+  User,
 
 } from "lucide-react";
+
+const CRM_NEON_ICON_CLASS =
+  "h-4 w-4 shrink-0 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]";
 
 type DealStatus =  "בטיפול" | "מאושר" | "נדחה" | "חוזה חתום";
 type FinancingType = "רגיל" | "מסובסד";
@@ -1087,6 +1092,218 @@ function getUserHeaderLogo(email?: string) {
   return email ? logos[email.toLowerCase()] ?? "/header-logo.png" : "/header-logo.png";
 }
 
+function ForgotPasswordModal({
+  email,
+  onEmailChange,
+  onClose,
+  onSubmit,
+  isLoading,
+  isSuccess,
+  error,
+}: {
+  email: string;
+  onEmailChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  isLoading: boolean;
+  isSuccess: boolean;
+  error: string | null;
+}) {
+  const canSubmit = email.trim().includes("@") && !isLoading && !isSuccess;
+
+  return (
+    <div
+      className="fixed inset-0 z-[210] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="איפוס סיסמה"
+    >
+      <button
+        type="button"
+        aria-label="סגירה"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="glass-card gradient-border relative z-10 w-full max-w-sm rounded-2xl border border-cyan-500/25 bg-slate-950/95 p-4 shadow-[0_0_32px_rgba(34,211,238,0.18)]"
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-cyan-300/80 transition-colors hover:bg-cyan-500/10 hover:text-cyan-100"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <h2 className="text-base font-bold text-cyan-100 sm:text-lg">איפוס סיסמה</h2>
+        </div>
+
+        {isSuccess ? (
+          <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-3 text-center text-sm font-semibold text-emerald-200">
+            נשלח אליך קישור לאיפוס הסיסמה
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-cyan-200/85">
+                כתובת מייל
+              </span>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => onEmailChange(e.target.value)}
+                className="input-neon w-full"
+                placeholder="name@example.com"
+                autoFocus
+              />
+            </label>
+
+            {error ? (
+              <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-center text-xs font-semibold text-rose-200">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              disabled={!canSubmit}
+              onClick={onSubmit}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)] transition-all hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isLoading ? (
+                <span className="h-4 w-4 rounded-full border-2 border-cyan-300/20 border-t-cyan-300 animate-spin shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
+              ) : (
+                "שלח קישור לאיפוס"
+              )}
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+function ChangePasswordModal({
+  newPassword,
+  confirmPassword,
+  onNewPasswordChange,
+  onConfirmPasswordChange,
+  onClose,
+  onSubmit,
+  isLoading,
+  isSuccess,
+  error,
+}: {
+  newPassword: string;
+  confirmPassword: string;
+  onNewPasswordChange: (value: string) => void;
+  onConfirmPasswordChange: (value: string) => void;
+  onClose: () => void;
+  onSubmit: () => void;
+  isLoading: boolean;
+  isSuccess: boolean;
+  error: string | null;
+}) {
+  const isValid = newPassword.length >= 8 && newPassword === confirmPassword;
+
+  return (
+    <div
+      className="fixed inset-0 z-[210] flex items-center justify-center p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-label="שינוי סיסמה"
+    >
+      <button
+        type="button"
+        aria-label="סגירה"
+        className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.div
+        initial={{ opacity: 0, scale: 0.96, y: 10 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        className="glass-card gradient-border relative z-10 w-full max-w-sm rounded-2xl border border-cyan-500/25 bg-slate-950/95 p-4 shadow-[0_0_32px_rgba(34,211,238,0.18)]"
+      >
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg p-1.5 text-cyan-300/80 transition-colors hover:bg-cyan-500/10 hover:text-cyan-100"
+          >
+            <X className="h-5 w-5" />
+          </button>
+          <h2 className="flex items-center gap-2 text-base font-bold text-cyan-100 sm:text-lg">
+            <Lock className={CRM_NEON_ICON_CLASS} />
+            שינוי סיסמה
+          </h2>
+        </div>
+
+        {isSuccess ? (
+          <p className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-3 py-3 text-center text-sm font-semibold text-emerald-200">
+            הסיסמה עודכנה בהצלחה
+          </p>
+        ) : (
+          <div className="space-y-3">
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-cyan-200/85">
+                סיסמה חדשה
+              </span>
+              <input
+                type="password"
+                value={newPassword}
+                onChange={(e) => onNewPasswordChange(e.target.value)}
+                className="input-neon w-full"
+                autoFocus
+              />
+            </label>
+
+            <label className="block">
+              <span className="mb-1.5 block text-xs font-medium text-cyan-200/85">
+                אימות סיסמה חדשה
+              </span>
+              <input
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => onConfirmPasswordChange(e.target.value)}
+                className="input-neon w-full"
+              />
+            </label>
+
+            {newPassword.length > 0 && newPassword.length < 8 ? (
+              <p className="text-xs text-cyan-200/70">הסיסמה חייבת להכיל לפחות 8 תווים</p>
+            ) : null}
+
+            {confirmPassword.length > 0 && newPassword !== confirmPassword ? (
+              <p className="text-xs text-cyan-200/70">הסיסמאות אינן תואמות</p>
+            ) : null}
+
+            {error ? (
+              <p className="rounded-xl border border-rose-400/30 bg-rose-500/10 px-3 py-2 text-center text-xs font-semibold text-rose-200">
+                {error}
+              </p>
+            ) : null}
+
+            <button
+              type="button"
+              disabled={!isValid || isLoading}
+              onClick={onSubmit}
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-cyan-500/30 bg-cyan-500/10 px-4 py-3 text-sm font-semibold text-cyan-200 shadow-[0_0_15px_rgba(34,211,238,0.15)] transition-all hover:bg-cyan-500/15 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {isLoading ? (
+                <span className="h-4 w-4 rounded-full border-2 border-cyan-300/20 border-t-cyan-300 animate-spin shadow-[0_0_12px_rgba(34,211,238,0.9)]" />
+              ) : (
+                "עדכון סיסמה"
+              )}
+            </button>
+          </div>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
 let newDealSuccessAudio: HTMLAudioElement | null = null;
 
 function playNewDealSuccessSound() {
@@ -1173,6 +1390,18 @@ export default function Home() {
   const [loginEmail, setLoginEmail] = useState("");
 const [loginPassword, setLoginPassword] = useState("");
 const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isForgotPasswordOpen, setIsForgotPasswordOpen] = useState(false);
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState("");
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false);
+  const [forgotPasswordSuccess, setForgotPasswordSuccess] = useState(false);
+  const [forgotPasswordError, setForgotPasswordError] = useState<string | null>(null);
+  const [isUserMenuOpen, setIsUserMenuOpen] = useState(false);
+  const [isChangePasswordOpen, setIsChangePasswordOpen] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [changePasswordLoading, setChangePasswordLoading] = useState(false);
+  const [changePasswordSuccess, setChangePasswordSuccess] = useState(false);
+  const [changePasswordError, setChangePasswordError] = useState<string | null>(null);
   const [deals, setDeals] = useState<Deal[]>([]);
   const [formData, setFormData] = useState<DealFormData>(defaultFormState);
   const [isManualCarModelEntry, setIsManualCarModelEntry] = useState(false);
@@ -1195,6 +1424,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [viewedUserId, setViewedUserId] = useState<string | null>(null);
   const [viewedUserEmail, setViewedUserEmail] = useState<string | null>(null);
   const managementMenuRef = useRef<HTMLDivElement>(null);
+  const userMenuRef = useRef<HTMLDivElement>(null);
   const dataLoadedForUserIdRef = useRef<string | null>(null);
   const effectiveUserId = viewedUserId ?? currentUser?.id;
   const isViewingAsUser = Boolean(canViewAs && viewedUserId);
@@ -1243,6 +1473,10 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
         setCurrentUser(null);
         clearActivityLogAccess();
         return;
+      }
+
+      if (event === "PASSWORD_RECOVERY") {
+        setIsChangePasswordOpen(true);
       }
 
       if (!session?.access_token) {
@@ -1316,6 +1550,68 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
       setIsLoadingAdminUsers(false);
     }
   }, []);
+
+  const closeForgotPasswordModal = useCallback(() => {
+    setIsForgotPasswordOpen(false);
+    setForgotPasswordEmail("");
+    setForgotPasswordSuccess(false);
+    setForgotPasswordError(null);
+    setForgotPasswordLoading(false);
+  }, []);
+
+  const handleForgotPasswordSubmit = useCallback(async () => {
+    const email = forgotPasswordEmail.trim();
+    if (!email.includes("@")) return;
+
+    setForgotPasswordLoading(true);
+    setForgotPasswordError(null);
+
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${window.location.origin}/`,
+    });
+
+    setForgotPasswordLoading(false);
+
+    if (error) {
+      setForgotPasswordError(error.message);
+      return;
+    }
+
+    setForgotPasswordSuccess(true);
+  }, [forgotPasswordEmail]);
+
+  const closeChangePasswordModal = useCallback(() => {
+    setIsChangePasswordOpen(false);
+    setNewPassword("");
+    setConfirmPassword("");
+    setChangePasswordSuccess(false);
+    setChangePasswordError(null);
+    setChangePasswordLoading(false);
+  }, []);
+
+  const handleChangePasswordSubmit = useCallback(async () => {
+    if (newPassword.length < 8 || newPassword !== confirmPassword) return;
+
+    setChangePasswordLoading(true);
+    setChangePasswordError(null);
+
+    const { error } = await supabase.auth.updateUser({ password: newPassword });
+
+    setChangePasswordLoading(false);
+
+    if (error) {
+      setChangePasswordError(error.message);
+      return;
+    }
+
+    setChangePasswordSuccess(true);
+    setNewPassword("");
+    setConfirmPassword("");
+
+    window.setTimeout(() => {
+      closeChangePasswordModal();
+    }, 1500);
+  }, [newPassword, confirmPassword, closeChangePasswordModal]);
 
   useEffect(() => {
     async function initialize() {
@@ -1441,6 +1737,18 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, [isManagementMenuOpen]);
+  useEffect(() => {
+    if (!isUserMenuOpen) return;
+
+    function handleClickOutside(event: MouseEvent) {
+      if (userMenuRef.current && !userMenuRef.current.contains(event.target as Node)) {
+        setIsUserMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isUserMenuOpen]);
   useEffect(() => {
     if (!isManagementMenuOpen || !canViewOtherUsers(userRole)) return;
     loadAdminUsers();
@@ -1778,8 +2086,21 @@ console.log("Delete error:", error);
             placeholder="סיסמא"
             value={loginPassword}
             onChange={(e) => setLoginPassword(e.target.value)}
-            className="w-full mb-4 p-3 rounded bg-slate-900 border border-slate-700"
+            className="w-full mb-2 p-3 rounded bg-slate-900 border border-slate-700"
           />
+
+          <button
+            type="button"
+            onClick={() => {
+              setForgotPasswordEmail(loginEmail);
+              setForgotPasswordSuccess(false);
+              setForgotPasswordError(null);
+              setIsForgotPasswordOpen(true);
+            }}
+            className="mb-4 block w-full text-right text-xs font-medium text-cyan-300/80 transition-colors hover:text-cyan-200"
+          >
+            שכחת סיסמה?
+          </button>
   
           <button
             onClick={async () => {
@@ -1817,6 +2138,18 @@ console.log("Delete error:", error);
 )}
           </button>
         </div>
+
+        {isForgotPasswordOpen ? (
+          <ForgotPasswordModal
+            email={forgotPasswordEmail}
+            onEmailChange={setForgotPasswordEmail}
+            onClose={closeForgotPasswordModal}
+            onSubmit={() => void handleForgotPasswordSubmit()}
+            isLoading={forgotPasswordLoading}
+            isSuccess={forgotPasswordSuccess}
+            error={forgotPasswordError}
+          />
+        ) : null}
       </div>
     );
   }
@@ -1831,17 +2164,60 @@ console.log("Delete error:", error);
         <header className="mission-header relative mb-3 text-center">
           <div className="mission-header__glow" aria-hidden />
           <div className="relative z-10">
-          <div className="absolute top-0 left-0">
-  <button
-    onClick={async () => {
-      await supabase.auth.signOut();
-      window.location.reload();
-    }}
-    className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.12)] backdrop-blur hover:bg-cyan-500/20 hover:text-cyan-100 transition-all"
-  >
-    התנתקות
-  </button>
-</div>
+          <div className="absolute top-0 left-0 flex items-center gap-2">
+            <div ref={userMenuRef} className="relative">
+              <button
+                type="button"
+                aria-expanded={isUserMenuOpen}
+                aria-haspopup="menu"
+                onClick={() => setIsUserMenuOpen((open) => !open)}
+                className="inline-flex items-center gap-1.5 rounded-full border border-cyan-500/25 bg-cyan-500/10 px-2.5 py-1 text-xs font-semibold text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.12)] backdrop-blur transition-all hover:bg-cyan-500/20 hover:text-cyan-100"
+              >
+                <User className="h-3.5 w-3.5 text-cyan-300 drop-shadow-[0_0_8px_rgba(34,211,238,0.5)]" />
+                חשבון
+              </button>
+
+              <AnimatePresence>
+                {isUserMenuOpen ? (
+                  <motion.div
+                    role="menu"
+                    initial={{ opacity: 0, y: -8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.18, ease: "easeOut" }}
+                    className="glass-card gradient-border absolute left-0 top-full z-50 mt-2 w-44 rounded-xl border border-cyan-500/25 bg-slate-950/80 p-2 shadow-[0_0_24px_rgba(34,211,238,0.2)] backdrop-blur"
+                  >
+                    <button
+                      type="button"
+                      role="menuitem"
+                      onClick={() => {
+                        setIsUserMenuOpen(false);
+                        setChangePasswordSuccess(false);
+                        setChangePasswordError(null);
+                        setNewPassword("");
+                        setConfirmPassword("");
+                        setIsChangePasswordOpen(true);
+                      }}
+                      className="flex w-full flex-row-reverse items-center gap-2 rounded-lg px-3 py-2 text-right text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/10 hover:text-cyan-100"
+                    >
+                      <Lock className={CRM_NEON_ICON_CLASS} />
+                      שינוי סיסמה
+                    </button>
+                  </motion.div>
+                ) : null}
+              </AnimatePresence>
+            </div>
+
+            <button
+              onClick={async () => {
+                await supabase.auth.signOut();
+                window.location.reload();
+              }}
+              className="rounded-full border border-cyan-500/25 bg-cyan-500/10 px-4 py-2 text-sm font-semibold text-cyan-200 shadow-[0_0_18px_rgba(34,211,238,0.12)] backdrop-blur hover:bg-cyan-500/20 hover:text-cyan-100 transition-all"
+            >
+              התנתקות
+            </button>
+          </div>
           {showManagementButton && (
             <div ref={managementMenuRef} className="absolute top-0 right-0 flex flex-row-reverse items-center gap-2">
               {canViewAs && viewedUserId && viewedUserEmail && (
@@ -2660,6 +3036,19 @@ console.log("Delete error:", error);
           <ActivityLogPanel
             open={isActivityLogOpen}
             onClose={() => setIsActivityLogOpen(false)}
+          />
+        ) : null}
+        {isChangePasswordOpen ? (
+          <ChangePasswordModal
+            newPassword={newPassword}
+            confirmPassword={confirmPassword}
+            onNewPasswordChange={setNewPassword}
+            onConfirmPasswordChange={setConfirmPassword}
+            onClose={closeChangePasswordModal}
+            onSubmit={() => void handleChangePasswordSubmit()}
+            isLoading={changePasswordLoading}
+            isSuccess={changePasswordSuccess}
+            error={changePasswordError}
           />
         ) : null}
       </div>
