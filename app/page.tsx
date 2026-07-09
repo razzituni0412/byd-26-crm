@@ -555,8 +555,15 @@ https://shlomo-sixt.open-finance.ai
 }
 
 function isMobileShareDevice() {
-  if (typeof navigator === "undefined") return false;
-  return /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  if (typeof navigator === "undefined" || typeof window === "undefined") return false;
+
+  const ua = navigator.userAgent;
+  if (/Android|iPhone|iPod|iPad|Mobile/i.test(ua)) return true;
+
+  // iPadOS 13+ may report as Mac with touch support.
+  if (navigator.maxTouchPoints > 1 && /Macintosh/i.test(ua)) return true;
+
+  return false;
 }
 
 function escapePrintHtml(value: string) {
@@ -1057,6 +1064,12 @@ function getUserAvatar(email?: string) {
   }
   if (email?.toLowerCase() === "hodr@shlomo.co.il") {
     return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/hod.jpeg";
+  }
+  if (email?.toLowerCase() === "idank@shlomo.co.il") {
+    return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/idan.jpeg";
+  }
+  if (email?.toLowerCase() === "liatc@shlomo.co.il") {
+    return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/liat.jpeg";
   }
   return "https://hfxvqkvymbhyaclziavo.supabase.co/storage/v1/object/public/avatars/raz.jpeg";
 }
@@ -2994,6 +3007,12 @@ function FinancingOfferModal({
 
   const handleShare = useCallback(async () => {
     if (!cardRef.current || isExporting) return;
+
+    if (!isMobileShareDevice()) {
+      setShowExportDialog(true);
+      return;
+    }
+
     setIsExporting(true);
     try {
       const dataUrl = await captureOfferImage();
@@ -3002,12 +3021,8 @@ function FinancingOfferModal({
       const response = await fetch(dataUrl);
       const blob = await response.blob();
       const file = new File([blob], "byd-haifa-financing-offer.png", { type: "image/png" });
-      const canShareWithImage = Boolean(
-        "share" in navigator &&
-          navigator.canShare?.({ files: [file] }),
-      );
 
-      if (canShareWithImage) {
+      if ("share" in navigator && navigator.canShare?.({ files: [file] })) {
         try {
           await navigator.share({
             files: [file],
@@ -3022,7 +3037,7 @@ function FinancingOfferModal({
         }
       }
 
-      if (isMobileShareDevice() && "share" in navigator) {
+      if ("share" in navigator) {
         try {
           await navigator.share({
             title: "הצעת מימון BYD חיפה",
@@ -3287,6 +3302,13 @@ function FinancingOfferModal({
               >
                 <Printer className="h-4 w-4 shrink-0 text-cyan-300" />
                 <span>הדפס / שמור PDF</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowExportDialog(false)}
+                className="flex w-full items-center justify-center rounded-xl border border-cyan-400/15 bg-transparent px-4 py-3 text-sm font-semibold text-cyan-200/80 transition-colors hover:bg-cyan-500/10 hover:text-cyan-50"
+              >
+                ביטול
               </button>
             </div>
           </div>
