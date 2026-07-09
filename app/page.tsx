@@ -2118,13 +2118,16 @@ console.log("Delete error:", error);
               }
 
               if (data.user) {
-                await logActivity({
-                  userId: data.user.id,
-                  userName: getUserName(data.user.email),
-                  userEmail: data.user.email ?? null,
-                  actionType: "login",
-                  description: "התחברות למערכת",
-                });
+                await logActivity(
+                  {
+                    userId: data.user.id,
+                    userName: getUserName(data.user.email),
+                    userEmail: data.user.email ?? null,
+                    actionType: "login",
+                    description: "התחברות למערכת",
+                  },
+                  data.session?.access_token,
+                );
               }
 
               window.location.reload();

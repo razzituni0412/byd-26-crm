@@ -56,13 +56,20 @@ export type LogActivityInput = {
   notificationContext?: ActivityNotificationContext | null;
 };
 
-export async function logActivity(input: LogActivityInput): Promise<void> {
+export async function logActivity(
+  input: LogActivityInput,
+  accessToken?: string,
+): Promise<void> {
   try {
-    const {
-      data: { session },
-    } = await supabase.auth.getSession();
+    let token = accessToken;
+    if (!token) {
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
+      token = session?.access_token;
+    }
 
-    if (!session?.access_token) {
+    if (!token) {
       console.warn("activity log skipped: no session");
       return;
     }
@@ -71,7 +78,7 @@ export async function logActivity(input: LogActivityInput): Promise<void> {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${session.access_token}`,
+        Authorization: `Bearer ${token}`,
       },
       body: JSON.stringify(input),
     });

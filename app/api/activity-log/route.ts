@@ -90,7 +90,7 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: "Failed to log activity" }, { status: 500 });
   }
 
-  void notifyTelegramForActivity({
+  await notifyTelegramForActivity({
     supabaseAdmin,
     userName: body.userName?.trim() || null,
     actionType: body.actionType,
