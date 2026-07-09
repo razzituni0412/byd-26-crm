@@ -2118,7 +2118,7 @@ console.log("Delete error:", error);
               }
 
               if (data.user) {
-                void logActivity({
+                await logActivity({
                   userId: data.user.id,
                   userName: getUserName(data.user.email),
                   userEmail: data.user.email ?? null,
@@ -2126,7 +2126,7 @@ console.log("Delete error:", error);
                   description: "התחברות למערכת",
                 });
               }
-  
+
               window.location.reload();
             }}
             className="w-full p-4 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-200 hover:bg-cyan-500/15 transition-all backdrop-blur shadow-[0_0_15px_rgba(34,211,238,0.15)]"
