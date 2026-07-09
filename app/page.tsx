@@ -1054,6 +1054,8 @@ function getUserName(email?: string) {
     "raz.zituni@icloud.com": "רז",
     "roeyshaltiel1@gmail.com": "רועי",
     "hodr@shlomo.co.il": "הוד",
+    "idank@shlomo.co.il": "עידן",
+    "liatc@shlomo.co.il": "ליאת",
   };
 
   return email ? users[email.toLowerCase()] || email : "";
@@ -1078,6 +1080,8 @@ function getUserHeaderLogo(email?: string) {
   const logos: Record<string, string> = {
     "raz.zituni@icloud.com": "/header-logo.png",
     "roeyshaltiel1@gmail.com": "/logos/roi-header-logo.png",
+    "idank@shlomo.co.il": "/headers/idan-header.png",
+    "liatc@shlomo.co.il": "/headers/liat-header.png",
   };
 
   return email ? logos[email.toLowerCase()] ?? "/header-logo.png" : "/header-logo.png";
