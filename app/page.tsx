@@ -1427,7 +1427,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const managementMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const dataLoadedForUserIdRef = useRef<string | null>(null);
-  const isSavingDealRef = useRef(false);
+  const submitLockRef = useRef(false);
   const effectiveUserId = viewedUserId ?? currentUser?.id;
   const isViewingAsUser = Boolean(canViewAs && viewedUserId);
   const showManagementButton = canAccessManagement(userRole);
@@ -1906,23 +1906,22 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    if (isSavingDealRef.current) return;
-
-    const dealDate = normalizeDealDate(formData.date);
-    if (
-      !dealDate ||
-      !/^\d{4}-\d{2}-\d{2}$/.test(dealDate) ||
-      !formData.agentName.trim() ||
-      !formData.customerName.trim() ||
-      !formData.carModel.trim()
-    ) {
-      return;
-    }
-
-    isSavingDealRef.current = true;
+    if (submitLockRef.current) return;
+    submitLockRef.current = true;
     setIsSavingDeal(true);
 
     try {
+      const dealDate = normalizeDealDate(formData.date);
+      if (
+        !dealDate ||
+        !/^\d{4}-\d{2}-\d{2}$/.test(dealDate) ||
+        !formData.agentName.trim() ||
+        !formData.customerName.trim() ||
+        !formData.carModel.trim()
+      ) {
+        return;
+      }
+
       const {
         data: { user },
       } = await supabase.auth.getUser();
@@ -2010,7 +2009,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
       resetForm();
       setActivePage("list");
     } finally {
-      isSavingDealRef.current = false;
+      submitLockRef.current = false;
       setIsSavingDeal(false);
     }
   };
