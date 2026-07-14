@@ -1406,6 +1406,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [formData, setFormData] = useState<DealFormData>(defaultFormState);
   const [isManualCarModelEntry, setIsManualCarModelEntry] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [isSavingDeal, setIsSavingDeal] = useState(false);
   const [targetsByPeriod, setTargetsByPeriod] = useState<MonthlyTargetsByPeriod>({});
   const [selectedPeriodValue, setSelectedPeriodValue] = useState(() =>
     getDefaultDashboardPeriodValue(),
@@ -1426,6 +1427,7 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
   const managementMenuRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
   const dataLoadedForUserIdRef = useRef<string | null>(null);
+  const isSavingDealRef = useRef(false);
   const effectiveUserId = viewedUserId ?? currentUser?.id;
   const isViewingAsUser = Boolean(canViewAs && viewedUserId);
   const showManagementButton = canAccessManagement(userRole);
@@ -1904,6 +1906,8 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    if (isSavingDealRef.current) return;
+
     const dealDate = normalizeDealDate(formData.date);
     if (
       !dealDate ||
@@ -1914,92 +1918,101 @@ const [isLoggingIn, setIsLoggingIn] = useState(false);
     ) {
       return;
     }
-const {
-  data: { user },
-} = await supabase.auth.getUser();
 
-if (!user) {
-  alert("יש להתחבר לפני שמירת עסקה");
-  return;
-}
-    const agentName = normalizeAgentName(formData.agentName);
+    isSavingDealRef.current = true;
+    setIsSavingDeal(true);
 
-    if (editingId) {
-      const { error: updateError } = await supabase
-  .from("deals")
-  .update({
-    date: dealDate,
-    agent_name: agentName,
-    customer_name: formData.customerName,
-    car_model: formData.carModel.trim(),
-    vehicle_price: Number(formData.vehiclePrice),
-    loan_term_months: normalizeLoanTermMonths(formData.loanTermMonths),
-    financing_amount: Number(formData.financingAmount),
-    interest_rate: Number(formData.interestRate),
-    status: formData.status,
-    financing_type: formData.financingType,
-  })
-  .eq("id", editingId)
-  .eq("user_id", user.id);
-      setDeals((prev) =>
-        prev.map((deal) =>
-          deal.id === editingId
-            ? {
-                ...deal,
-                ...formData,
-                date: dealDate,
-                agentName,
-                financingAmount: Number(formData.financingAmount),
-                interestRate: Number(formData.interestRate),
-                vehiclePrice: Number(formData.vehiclePrice),
-                loanTermMonths: normalizeLoanTermMonths(formData.loanTermMonths),
-              }
-            : deal,
-        ),
-      );
-      if (!updateError) {
-        logUserActivity("deal_updated", "עסקה עודכנה", editingId);
-      }
-    } else {
-      const { data: insertedDeal, error: insertError } = await supabase
-  .from("deals")
-  .insert({
-    date: dealDate,
-    user_id: user.id,
-    agent_name: agentName,
-    customer_name: formData.customerName,
-    car_model: formData.carModel.trim(),
-    vehicle_price: Number(formData.vehiclePrice),
-    loan_term_months: normalizeLoanTermMonths(formData.loanTermMonths),
-    financing_amount: Number(formData.financingAmount),
-    interest_rate: Number(formData.interestRate),
-    status: formData.status,
-    financing_type: formData.financingType,
-  })
-  .select("id")
-  .single();
+    try {
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
 
-      if (insertError || !insertedDeal) {
+      if (!user) {
+        alert("יש להתחבר לפני שמירת עסקה");
         return;
       }
+      const agentName = normalizeAgentName(formData.agentName);
 
-      const newDeal: Deal = {
-        id: insertedDeal.id,
-        ...formData,
-        date: dealDate,
-        agentName,
-        financingAmount: Number(formData.financingAmount),
-        interestRate: Number(formData.interestRate),
-        vehiclePrice: Number(formData.vehiclePrice),
-        loanTermMonths: normalizeLoanTermMonths(formData.loanTermMonths),
-      };
-      setDeals((prev) => [newDeal, ...prev]);
-      playNewDealSuccessSound();
-      logUserActivity("deal_created", "נוצרה עסקה חדשה", insertedDeal.id);
+      if (editingId) {
+        const { error: updateError } = await supabase
+          .from("deals")
+          .update({
+            date: dealDate,
+            agent_name: agentName,
+            customer_name: formData.customerName,
+            car_model: formData.carModel.trim(),
+            vehicle_price: Number(formData.vehiclePrice),
+            loan_term_months: normalizeLoanTermMonths(formData.loanTermMonths),
+            financing_amount: Number(formData.financingAmount),
+            interest_rate: Number(formData.interestRate),
+            status: formData.status,
+            financing_type: formData.financingType,
+          })
+          .eq("id", editingId)
+          .eq("user_id", user.id);
+        setDeals((prev) =>
+          prev.map((deal) =>
+            deal.id === editingId
+              ? {
+                  ...deal,
+                  ...formData,
+                  date: dealDate,
+                  agentName,
+                  financingAmount: Number(formData.financingAmount),
+                  interestRate: Number(formData.interestRate),
+                  vehiclePrice: Number(formData.vehiclePrice),
+                  loanTermMonths: normalizeLoanTermMonths(formData.loanTermMonths),
+                }
+              : deal,
+          ),
+        );
+        if (!updateError) {
+          logUserActivity("deal_updated", "עסקה עודכנה", editingId);
+        }
+      } else {
+        const { data: insertedDeal, error: insertError } = await supabase
+          .from("deals")
+          .insert({
+            date: dealDate,
+            user_id: user.id,
+            agent_name: agentName,
+            customer_name: formData.customerName,
+            car_model: formData.carModel.trim(),
+            vehicle_price: Number(formData.vehiclePrice),
+            loan_term_months: normalizeLoanTermMonths(formData.loanTermMonths),
+            financing_amount: Number(formData.financingAmount),
+            interest_rate: Number(formData.interestRate),
+            status: formData.status,
+            financing_type: formData.financingType,
+          })
+          .select("id")
+          .single();
+
+        if (insertError || !insertedDeal) {
+          return;
+        }
+
+        const newDeal: Deal = {
+          id: insertedDeal.id,
+          ...formData,
+          date: dealDate,
+          agentName,
+          financingAmount: Number(formData.financingAmount),
+          interestRate: Number(formData.interestRate),
+          vehiclePrice: Number(formData.vehiclePrice),
+          loanTermMonths: normalizeLoanTermMonths(formData.loanTermMonths),
+        };
+        setDeals((prev) => [newDeal, ...prev]);
+        playNewDealSuccessSound();
+        logUserActivity("deal_created", "נוצרה עסקה חדשה", insertedDeal.id);
+      }
+
+      resetForm();
+      setActivePage("list");
+    } finally {
+      isSavingDealRef.current = false;
+      setIsSavingDeal(false);
     }
-
-    resetForm();
-    setActivePage("list");
   };
 
   const startEdit = (deal: Deal) => {
@@ -2874,12 +2887,19 @@ console.log("Delete error:", error);
 
                 <div className="flex flex-col gap-2 pt-2 sm:flex-row">
                   <motion.button
-                    whileHover={{ y: -2, scale: 1.01 }}
-                    whileTap={{ scale: 0.99 }}
+                    whileHover={isSavingDeal ? undefined : { y: -2, scale: 1.01 }}
+                    whileTap={isSavingDeal ? undefined : { scale: 0.99 }}
                     type="submit"
-                    className="flex-1 rounded-xl bg-gradient-to-r from-blue-500 via-cyan-400 to-sky-300 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(56,189,248,0.75)]"
+                    disabled={isSavingDeal}
+                    className="flex-1 rounded-xl bg-gradient-to-r from-blue-500 via-cyan-400 to-sky-300 px-4 py-2.5 text-sm font-semibold text-white shadow-[0_0_20px_rgba(56,189,248,0.75)] disabled:cursor-not-allowed disabled:opacity-50"
                   >
-                    {editingId ? "שמור שינויים" : "שמור עסקה"}
+                    {isSavingDeal
+                      ? editingId
+                        ? "שומר שינויים..."
+                        : "שומר עסקה..."
+                      : editingId
+                        ? "שמור שינויים"
+                        : "שמור עסקה"}
                   </motion.button>
                   {editingId && (
                     <motion.button
